@@ -2,7 +2,7 @@ import SwiftUI
 import CoreBluetooth
 
 struct CoreControlsView: View {
-    let core: ShinerCore
+    @StateObject let core: ShinerCore
     
     var body: some View {
         VStack {

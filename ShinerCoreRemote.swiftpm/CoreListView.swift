@@ -32,12 +32,14 @@ struct CoreListView : View {
             coreManager.lostCore = { core in
                 cores.removeAll { $0 == core }
             }
+            coreManager.connectedCore = { core in 
+                connectedCore = core
+            }
         }
     }
     
     private func connect(to core: ShinerCore) {
         coreManager.centralManager.connect(core.device, options: nil)
-        connectedCore = core
     }
 }
 
