@@ -1,23 +1,69 @@
 import CoreBluetooth
 
-class ShinerCore : Identifiable, Hashable, Equatable
+let shinerServiceUUID = CBUUID(string: "6c0de004-629d-4717-bed5-847fddfbdc2e")
+let colorCharacteristicUUID = CBUUID(string: "c116fce1-9a8a-4084-80a3-b83be2fbd108")
+
+class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate
 {
     let device: CBPeripheral
     init(for device: CBPeripheral)
     {
         self.device = device
+        super.init()
+        device.delegate = self
+        device.discoverServices([shinerServiceUUID])
     }
     
     public var id: UUID { device.identifier }
     
-    func hash(into hasher: inout Hasher)
+    var color: String?
+    
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?)
     {
-        device.hash(into: &hasher)
+        guard let services = peripheral.services else
+        {
+            print("lol no services")
+            return
+        }
+        
+        guard let shinerService = services.first(where: { $0.uuid == shinerServiceUUID }) else
+        {
+            print("lol no shiner service")
+            return
+        }
+        
+        device.discoverCharacteristics(nil, for: shinerService)
     }
     
-    static func == (lhs: ShinerCore, rhs: ShinerCore) -> Bool
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?)
     {
-        return lhs.device == rhs.device
+        guard let chars = service.characteristics else
+        {
+            print("lol no characteristics")
+            return
+        }
+        
+        for char in chars
+        {
+            device.readValue(for: char)
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?)
+    {
+        guard 
+            let data = characteristic.value, 
+            let str = String(data: data, encoding: .utf8)
+        else
+        {
+            print("lol unreadable characteristic")
+            return
+        }
+        
+        if characteristic.uuid == colorCharacteristicUUID
+        {
+            self.color = str
+        }
     }
 }
 
