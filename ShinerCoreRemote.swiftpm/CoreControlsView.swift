@@ -6,7 +6,7 @@ struct CoreControlsView: View {
     
     var body: some View {
         VStack {
-            Text("Yooo")
+            Text(core.color ?? "Reading...")
                 .font(.title)
                 .navigationBarTitle(core.device.name ?? "Unknown")
         }

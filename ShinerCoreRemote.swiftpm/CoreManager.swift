@@ -5,18 +5,20 @@ let colorCharacteristicUUID = CBUUID(string: "c116fce1-9a8a-4084-80a3-b83be2fbd1
 
 class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate
 {
+    @Published var color: String?
+        
     let device: CBPeripheral
     init(for device: CBPeripheral)
     {
         self.device = device
         super.init()
         device.delegate = self
+        print("Discovering services...")
         device.discoverServices([shinerServiceUUID])
     }
     
     public var id: UUID { device.identifier }
     
-    var color: String?
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?)
     {
@@ -32,6 +34,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate
             return
         }
         
+        print("Discovering characteristics...")
         device.discoverCharacteristics(nil, for: shinerService)
     }
     
