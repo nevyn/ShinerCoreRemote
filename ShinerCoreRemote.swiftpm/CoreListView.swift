@@ -1,87 +1,43 @@
 import SwiftUI
 import CoreBluetooth
 
-class BLEScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
-    var centralManager: CBCentralManager!
-    var peripheralDiscoveredHandler: ((CBPeripheral) -> Void)?
-    var peripheralDisappearedHandler: ((CBPeripheral) -> Void)?
-    
-    private var discoveredPeripherals: [CBPeripheral] = []
-    
-    override init() {
-        super.init()
-        centralManager = CBCentralManager(delegate: self, queue: nil)
-    }
-    
-    func scanForBLEAccessories() {
-        centralManager.scanForPeripherals(withServices: [CBUUID(string: "6c0de004-629d-4717-bed5-847fddfbdc2e")], options: nil)
-    }
-    
-    // CBCentralManagerDelegate methods
-    func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn {
-            scanForBLEAccessories()
-        } else {
-            print("Bluetooth is not available.")
-        }
-    }
-    
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
-                        advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        if !discoveredPeripherals.contains(peripheral) {
-            discoveredPeripherals.append(peripheral)
-            peripheralDiscoveredHandler?(peripheral)
-        }
-    }
-    
-    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        if let index = discoveredPeripherals.firstIndex(of: peripheral) {
-            discoveredPeripherals.remove(at: index)
-            peripheralDisappearedHandler?(peripheral)
-        }
-    }
-}
-
 struct CoreListView : View {
-    @StateObject private var bleScanner = BLEScanner()
-    @State private var peripherals: [CBPeripheral] = []
-    @State private var connectedPeripheral: CBPeripheral?
+    @StateObject private var coreManager = CoreManager()
+    @State private var cores: [ShinerCore] = []
+    @State private var connectedCore: ShinerCore?
     
     var body: some View {
         NavigationView {
             VStack {
-                List(peripherals, id: \.self) { peripheral in
+                List(cores, id: \.self) { core in
                     NavigationLink(
-                        destination: CoreControlsView(peripheral: peripheral),
-                        tag: peripheral,
-                        selection: $connectedPeripheral
+                        destination: CoreControlsView(core: core),
+                        tag: core,
+                        selection: $connectedCore
                     ) {
-                        Text(peripheral.name ?? "Unknown")
+                        Text(core.device.name ?? "Unknown")
                     }
                     .onTapGesture {
-                        connect(to: peripheral)
+                        connect(to: core)
                     }
                 }
             }
             .navigationTitle("Nearby cores ✨")
         }
         .onAppear {
-            bleScanner.peripheralDiscoveredHandler = { peripheral in
-                peripherals.append(peripheral)
+            coreManager.foundCore = { core in
+                cores.append(core)
             }
             
-            bleScanner.peripheralDisappearedHandler = { peripheral in
-                peripherals.removeAll { $0 == peripheral }
+            coreManager.lostCore = { core in
+                cores.removeAll { $0 == core }
             }
         }
     }
     
-    private func connect(to peripheral: CBPeripheral) {
-        bleScanner.centralManager.connect(peripheral, options: nil)
-        connectedPeripheral = peripheral
+    private func connect(to core: ShinerCore) {
+        coreManager.centralManager.connect(core.device, options: nil)
+        connectedCore = core
     }
 }
 
-extension CBPeripheral: Identifiable {
-    public var id: UUID { identifier }
-}

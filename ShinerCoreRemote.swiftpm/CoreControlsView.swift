@@ -2,13 +2,13 @@ import SwiftUI
 import CoreBluetooth
 
 struct CoreControlsView: View {
-    let peripheral: CBPeripheral
+    let core: ShinerCore
     
     var body: some View {
         VStack {
-            Text(peripheral.name ?? "Unknown")
+            Text("Yooo")
                 .font(.title)
-                .navigationBarTitle(peripheral.name ?? "Unknown")
+                .navigationBarTitle(core.device.name ?? "Unknown")
         }
     }
   }
