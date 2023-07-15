@@ -42,7 +42,7 @@ class BLEScanner: NSObject, ObservableObject, CBCentralManagerDelegate {
     }
 }
 
-struct ContentView: View {
+struct CoreListView : View {
     @StateObject private var bleScanner = BLEScanner()
     @State private var peripherals: [CBPeripheral] = []
     @State private var connectedPeripheral: CBPeripheral?
@@ -52,7 +52,7 @@ struct ContentView: View {
             VStack {
                 List(peripherals, id: \.self) { peripheral in
                     NavigationLink(
-                        destination: AccessoryControlsView(peripheral: peripheral),
+                        destination: CoreControlsView(peripheral: peripheral),
                         tag: peripheral,
                         selection: $connectedPeripheral
                     ) {
@@ -63,7 +63,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle("Nearby shinercores ✨")
+            .navigationTitle("Nearby cores ✨")
         }
         .onAppear {
             bleScanner.peripheralDiscoveredHandler = { peripheral in
@@ -79,18 +79,6 @@ struct ContentView: View {
     private func connect(to peripheral: CBPeripheral) {
         bleScanner.centralManager.connect(peripheral, options: nil)
         connectedPeripheral = peripheral
-    }
-}
-
-struct AccessoryControlsView: View {
-    let peripheral: CBPeripheral
-    
-    var body: some View {
-        VStack {
-            Text(peripheral.name ?? "Unknown")
-                .font(.title)
-                .navigationBarTitle(peripheral.name ?? "Unknown")
-        }
     }
 }
 
