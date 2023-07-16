@@ -15,7 +15,7 @@ struct CoreListView : View {
                         tag: core,
                         selection: $connectedCore
                     ) {
-                        Text(core.device.name ?? "Unknown")
+                        Text(core.localName)
                     }
                     .onTapGesture {
                         connect(to: core)

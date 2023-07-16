@@ -8,7 +8,7 @@ struct CoreControlsView: View {
         VStack {
             Text(core.color ?? "Reading...")
                 .font(.title)
-                .navigationBarTitle(core.device.name ?? "Unknown")
+                .navigationBarTitle(core.localName ?? "Unknown")
         }
     }
   }
