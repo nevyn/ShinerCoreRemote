@@ -10,13 +10,13 @@ struct CoreControlsView: View {
     ]
     var body: some View {
         LazyVGrid(columns: columns, spacing: 16) {
-            StringPropBox(title: "Primary color", value: core.color)
-            StringPropBox(title: "Secondary color", value: core.color2)
-            StringPropBox(title: "Brightness", value: core.brightness)
-            StringPropBox(title: "Mode", value: core.mode)
-            StringPropBox(title: "Tau", value: core.tau)
-            StringPropBox(title: "Phi", value: core.phi)
-            StringPropBox(title: "Owner's name", value: core.name)
+            StringPropBox(title: "Primary color", prop: core.color)
+            StringPropBox(title: "Secondary color", prop: core.color2)
+            SliderPropBox(title: "Brightness", prop: core.brightness)
+            StringPropBox(title: "Mode", prop: core.mode)
+            StringPropBox(title: "Tau", prop: core.tau)
+            StringPropBox(title: "Phi", prop: core.phi)
+            StringPropBox(title: "Owner's name", prop: core.name)
         }
         .navigationBarTitle(core.localName)
     }
@@ -24,13 +24,13 @@ struct CoreControlsView: View {
 
 struct StringPropBox: View {
     let title: String
-    let value: String?
+    let prop: CorePropertyBase
     
     var body: some View {
         VStack {
             Text(title)
                 .font(.headline)
-            Text(value ?? "...")
+            Text(prop.rawValue ?? "...")
                 .font(.subheadline)
                 .foregroundColor(.gray)
         }
@@ -43,15 +43,19 @@ struct StringPropBox: View {
 
 struct SliderPropBox: View {
     let title: String
-    let value: String?
+    let prop: CoreProperty<DoubleConverter>
+    @State var value: Double = 0.0
     let range = 0.0...255.0
     
     var body: some View {
         VStack {
             Text(title)
                 .font(.headline)
-//            Slider() // TODO...
-            Text(value ?? "...")
+            Slider(
+                value: $value,
+                in: range
+            )
+            Text(prop.rawValue ?? "...")
                 .font(.subheadline)
                 .foregroundColor(.gray)
         }
@@ -59,5 +63,8 @@ struct SliderPropBox: View {
         .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
+        .onAppear {
+            value = prop.convertedValue() ?? 0.0
+        }
     }
 }

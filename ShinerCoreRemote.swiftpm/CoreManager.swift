@@ -3,14 +3,22 @@ import SwiftUI
 
 let shinerServiceUUID = CBUUID(string: "6c0de004-629d-4717-bed5-847fddfbdc2e")
 
-class CoreProperty<ConverterType>
-where ConverterType : PropertyConverter
+class CorePropertyBase
 {
     let name: String
     @objc let uuid: CBUUID
     @objc var rawValue: String? = nil
-    let converter = ConverterType.init()
     
+    init(name: String, uuid: CBUUID)
+    {
+        self.name = name
+        self.uuid = uuid
+    }
+}
+class CoreProperty<ConverterType> : CorePropertyBase
+where ConverterType : PropertyConverter
+{
+    let converter = ConverterType.init()
     func convertedValue() -> ConverterType.ValueType?
     {
         return converter.convert(rawValue)
@@ -30,7 +38,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     let tau = CoreProperty<DoubleConverter>(name: "tau", uuid: CBUUID(string: "d879c81a-09f0-4a24-a66c-cebf358bb97a"))
     let phi = CoreProperty<DoubleConverter>(name: "phi", uuid: CBUUID(string: "df6f0905-09bd-4bf6-b6f5-45b5a4d20d52"))
     let name = CoreProperty<StringConverter>(name: "name", uuid: CBUUID(string: "7ad50f2a-01b5-4522-9792-d3fd4af5942f"))
-    let properties: [String: PropertyConverter]
+    var properties: [String: CorePropertyBase] = [:]
     
     let device: CBPeripheral
     public init(for device: CBPeripheral)
@@ -38,8 +46,8 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         self.device = device
         super.init()
         device.delegate = self
-        for prop in [color, color2, mode, brightness, tau, phi, name] as [Any] {
-            properties[prop.uuid] = prop                        
+        for prop in [color, color2, mode, brightness, tau, phi, name] {
+            properties[prop.uuid.uuidString] = prop            
         }
     }
     
@@ -99,14 +107,14 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         }
         
         let uuid = characteristic.uuid
-        guard let prop = properties[uuid]
+        guard let prop = properties[uuid.uuidString]
         else { return }
         
         print("Read characteristic \(prop.name) as \(str).")
 
         DispatchQueue.main.async { [weak self] in
+            self?.objectWillChange.send()
             prop.rawValue = str
-            objectWillChange.send()
         }
     }
 }
@@ -171,7 +179,7 @@ class CoreManager: NSObject, ObservableObject, CBCentralManagerDelegate
     func centralManager(_ central: CBCentralManager, didFailToConnect: CBPeripheral, error: Error?)
     {
         // TODO: propagate to UI
-        print("Failed to connect peripheral: \(error)")
+        print("Failed to connect peripheral: \(String(describing: error))")
     }
 }
 
