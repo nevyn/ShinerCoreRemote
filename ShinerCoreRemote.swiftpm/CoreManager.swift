@@ -3,18 +3,19 @@ import SwiftUI
 
 let shinerServiceUUID = CBUUID(string: "6c0de004-629d-4717-bed5-847fddfbdc2e")
 
-struct CoreProperty<T>
+class CoreProperty<ConverterType>
+where ConverterType : PropertyConverter
 {
     let name: String
-    let uuid: CBUUID
-    var rawValue: String? = nil
-    let converter: PropertyConverter<T>
+    @objc let uuid: CBUUID
+    @objc var rawValue: String? = nil
+    let converter = ConverterType.init()
     
-    func convertedValue() -> T?
+    func convertedValue() -> ConverterType.ValueType?
     {
         return converter.convert(rawValue)
     }
-    func unconvertedValue(value: T) -> String?
+    func unconvertedValue(value: ConverterType.ValueType) -> String?
     {
         return converter.unconvert(value)
     }
@@ -22,22 +23,24 @@ struct CoreProperty<T>
 
 class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObject
 {
-    var properties = [
-        "color": CoreProperty.create(name: "color", uuid: CBUUID(string: "c116fce1-9a8a-4084-80a3-b83be2fbd108"), converter: PropertyConverter.color()),
-        "color2": CoreProperty.create(name: "color2", uuid: CBUUID(string: "83595a76-1b17-4158-bcee-e702c3165caf"), converter: PropertyConverter.color()),
-        "mode": CoreProperty.create(name: "mode", uuid: CBUUID(string: "70d4cabe-82cc-470a-a572-95c23f1316ff"), converter: PropertyConverter.int()),
-        "brightness": CoreProperty(name: "brightness", uuid: CBUUID(string: "2B01"), converter: PropertyConverter.color()),
-        "tau": CoreProperty.create(name: "tau", uuid: CBUUID(string: "d879c81a-09f0-4a24-a66c-cebf358bb97a"), converter: PropertyConverter.number()),
-        "phi": CoreProperty.create(name: "phi", uuid: CBUUID(string: "df6f0905-09bd-4bf6-b6f5-45b5a4d20d52"), converter: PropertyConverter.number()),
-        "name": CoreProperty.create(name: "name", uuid: CBUUID(string: "7ad50f2a-01b5-4522-9792-d3fd4af5942f"), converter: PropertyConverter.string())
-    ]
-        
+    let color = CoreProperty<ColorConverter>(name: "color", uuid: CBUUID(string: "c116fce1-9a8a-4084-80a3-b83be2fbd108"))
+    let color2 = CoreProperty<ColorConverter>(name: "color2", uuid: CBUUID(string: "83595a76-1b17-4158-bcee-e702c3165caf"))
+    let mode = CoreProperty<IntConverter>(name: "mode", uuid: CBUUID(string: "70d4cabe-82cc-470a-a572-95c23f1316ff"))
+    let brightness = CoreProperty<DoubleConverter>(name: "brightness", uuid: CBUUID(string: "2B01"))
+    let tau = CoreProperty<DoubleConverter>(name: "tau", uuid: CBUUID(string: "d879c81a-09f0-4a24-a66c-cebf358bb97a"))
+    let phi = CoreProperty<DoubleConverter>(name: "phi", uuid: CBUUID(string: "df6f0905-09bd-4bf6-b6f5-45b5a4d20d52"))
+    let name = CoreProperty<StringConverter>(name: "name", uuid: CBUUID(string: "7ad50f2a-01b5-4522-9792-d3fd4af5942f"))
+    let properties: [String: PropertyConverter]
+    
     let device: CBPeripheral
     public init(for device: CBPeripheral)
     {
         self.device = device
         super.init()
         device.delegate = self
+        for prop in [color, color2, mode, brightness, tau, phi, name] as [Any] {
+            properties[prop.uuid] = prop                        
+        }
     }
     
     public func read()
@@ -96,9 +99,8 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         }
         
         let uuid = characteristic.uuid
-        guard let prop = properties.values.first(where: {$0.uuid == uuid})
+        guard let prop = properties[uuid]
         else { return }
-        
         
         print("Read characteristic \(prop.name) as \(str).")
 
@@ -173,58 +175,74 @@ class CoreManager: NSObject, ObservableObject, CBCentralManagerDelegate
     }
 }
 
-struct PropertyConverter<T>
-{
-    let convert: (String?) -> T?
-    let unconvert: (T) -> String?
-    
-    static func string() -> PropertyConverter<String> {
-        PropertyConverter<String>(
-            convert: { $0 },
-            unconvert: { $0 }
-        )
+protocol PropertyConverter {
+    associatedtype ValueType
+    init()
+    func convert(_ string: String?) -> ValueType?
+    func unconvert(_ value: ValueType) -> String
+}
+
+struct DoubleConverter: PropertyConverter {
+    typealias ValueType = Double
+    init() {}
+    func convert(_ string: String?) -> Double? {
+        guard let string = string else { return nil }
+        return Double(string)
+    }
+    func unconvert(_ value: Double) -> String {
+        return String(value)
+    }
+}
+struct StringConverter: PropertyConverter {
+    typealias ValueType = String
+    init() {}
+    func convert(_ string: String?) -> String? {
+        return string
+    }
+    func unconvert(_ value: String) -> String {
+        return value
+    }
+}
+
+struct IntConverter: PropertyConverter {
+    typealias ValueType = Int
+    init() {}
+    func convert(_ string: String?) -> Int? {
+        guard let string = string else { return nil }
+        return Int(string)
     }
     
-    static func int() -> PropertyConverter<Int> {
-        PropertyConverter<Int>(
-            convert: { Int($0 ?? "") },
-            unconvert: { String($0) }
-        )
+    func unconvert(_ value: Int) -> String {
+        return String(value)
+    }
+}
+
+struct ColorConverter: PropertyConverter {
+    typealias ValueType = Color
+    init() {}
+    func convert(_ string: String?) -> Color? {
+        guard let rawValue = string else {
+            return nil
+        }
+        
+        let components = rawValue.components(separatedBy: " ")
+        guard components.count == 3,
+              let red = Double(components[0]),
+              let green = Double(components[1]),
+              let blue = Double(components[2]),
+              red >= 0, red <= 255,
+              green >= 0, green <= 255,
+              blue >= 0, blue <= 255 else {
+            return nil
+        }
+        
+        let color = Color(red: red / 255, green: green / 255, blue: blue / 255)
+        return color
     }
     
-    static func number() -> PropertyConverter<Double> {
-        PropertyConverter<Double>(
-            convert: { Double($0 ?? "") },
-            unconvert: { String($0) }
-        )
-    }
-    
-    static func color() -> PropertyConverter<Color> {
-        PropertyConverter<Color>(
-            convert: { rawValue in
-                guard let rawValue = rawValue else {
-                    return nil
-                }
-                
-                let components = rawValue.components(separatedBy: " ")
-                guard components.count == 3,
-                      let red = Double(components[0]),
-                      let green = Double(components[1]),
-                      let blue = Double(components[2]),
-                      red >= 0, red <= 255,
-                      green >= 0, green <= 255,
-                      blue >= 0, blue <= 255 else {
-                    return nil
-                }
-                
-                let color = Color(red: red / 255, green: green / 255, blue: blue / 255)
-                return color
-            },
-            unconvert: { color in
-                let (red, green, blue, _) = color.rgba
-                return "\(Int(red*255)) \(Int(green*255)) \(Int(blue*255))"
-            }
-        )
+    func unconvert(_ value: Color) -> String {
+        let (red, green, blue, _) = value.rgba
+        return "\(Int(red*255)) \(Int(green*255)) \(Int(blue*255))"
     }
 }
 
