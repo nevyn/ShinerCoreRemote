@@ -35,6 +35,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
 {
     @Published var color = CoreProperty<ColorConverter>(name: "color", uuid: CBUUID(string: "c116fce1-9a8a-4084-80a3-b83be2fbd108"))
     let color2 = CoreProperty<ColorConverter>(name: "color2", uuid: CBUUID(string: "83595a76-1b17-4158-bcee-e702c3165caf"))
+    let speed = CoreProperty<DoubleConverter>(name: "speed", uuid: CBUUID(string: "5341966c-da42-4b65-9c27-5de57b642e28"))
     let mode = CoreProperty<IntConverter>(name: "mode", uuid: CBUUID(string: "70d4cabe-82cc-470a-a572-95c23f1316ff"))
     let brightness = CoreProperty<IntConverter>(name: "brightness", uuid: CBUUID(string: "2B01"))
     let tau = CoreProperty<DoubleConverter>(name: "tau", uuid: CBUUID(string: "d879c81a-09f0-4a24-a66c-cebf358bb97a"))
@@ -48,7 +49,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         self.device = device
         super.init()
         device.delegate = self
-        for prop in [color, color2, mode, brightness, tau, phi, name] {
+        for prop in [color, color2, speed, mode, brightness, tau, phi, name] {
             properties[prop.uuid.uuidString] = prop            
         }
     }
