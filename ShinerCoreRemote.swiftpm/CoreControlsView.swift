@@ -9,14 +9,16 @@ struct CoreControlsView: View {
         GridItem(.flexible())
     ]
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 16) {
-            StringPropBox(title: "Primary color", prop: core.color)
-            StringPropBox(title: "Secondary color", prop: core.color2)
-            SliderPropBox(title: "Brightness", prop: core.brightness)
-            StringPropBox(title: "Mode", prop: core.mode)
-            StringPropBox(title: "Tau", prop: core.tau)
-            StringPropBox(title: "Phi", prop: core.phi)
-            StringPropBox(title: "Owner's name", prop: core.name)
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 16) {
+                StringPropBox(title: "Primary color", core: core, prop: core.color)
+                StringPropBox(title: "Secondary color", core: core, prop: core.color2)
+                SliderPropBox(title: "Brightness", core: core, prop: core.brightness)
+                StringPropBox(title: "Mode", core: core, prop: core.mode)
+                StringPropBox(title: "Tau", core: core, prop: core.tau)
+                StringPropBox(title: "Phi", core: core, prop: core.phi)
+                StringPropBox(title: "Owner's name", core: core, prop: core.name)
+            }
         }
         .navigationBarTitle(core.localName)
     }
@@ -24,7 +26,8 @@ struct CoreControlsView: View {
 
 struct StringPropBox: View {
     let title: String
-    let prop: CorePropertyBase
+    let core: ShinerCore
+    @ObservedObject var prop: CorePropertyBase
     
     var body: some View {
         VStack {
@@ -43,7 +46,8 @@ struct StringPropBox: View {
 
 struct SliderPropBox: View {
     let title: String
-    let prop: CoreProperty<DoubleConverter>
+    let core: ShinerCore
+    @ObservedObject var prop: CoreProperty<IntConverter>
     @State var value: Double = 0.0
     let range = 0.0...255.0
     
@@ -55,6 +59,9 @@ struct SliderPropBox: View {
                 value: $value,
                 in: range
             )
+                .onChange(of: value, perform: {newValue in 
+                    core.write(newValue: prop.unconvertedValue(value: Int(newValue)), to: prop)
+                })
             Text(prop.rawValue ?? "...")
                 .font(.subheadline)
                 .foregroundColor(.gray)
@@ -64,7 +71,7 @@ struct SliderPropBox: View {
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
         .onAppear {
-            value = prop.convertedValue() ?? 0.0
+            value = Double(prop.convertedValue() ?? 0)
         }
     }
 }

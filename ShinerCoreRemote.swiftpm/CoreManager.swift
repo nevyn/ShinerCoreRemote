@@ -3,11 +3,13 @@ import SwiftUI
 
 let shinerServiceUUID = CBUUID(string: "6c0de004-629d-4717-bed5-847fddfbdc2e")
 
-class CorePropertyBase
+class CorePropertyBase : ObservableObject
 {
     let name: String
     @objc let uuid: CBUUID
-    @objc var rawValue: String? = nil
+    @Published @objc var rawValue: String? = nil
+    
+    fileprivate var characteristic: CBCharacteristic! = nil    
     
     init(name: String, uuid: CBUUID)
     {
@@ -23,7 +25,7 @@ where ConverterType : PropertyConverter
     {
         return converter.convert(rawValue)
     }
-    func unconvertedValue(value: ConverterType.ValueType) -> String?
+    func unconvertedValue(value: ConverterType.ValueType) -> String
     {
         return converter.unconvert(value)
     }
@@ -31,10 +33,10 @@ where ConverterType : PropertyConverter
 
 class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObject
 {
-    let color = CoreProperty<ColorConverter>(name: "color", uuid: CBUUID(string: "c116fce1-9a8a-4084-80a3-b83be2fbd108"))
+    @Published var color = CoreProperty<ColorConverter>(name: "color", uuid: CBUUID(string: "c116fce1-9a8a-4084-80a3-b83be2fbd108"))
     let color2 = CoreProperty<ColorConverter>(name: "color2", uuid: CBUUID(string: "83595a76-1b17-4158-bcee-e702c3165caf"))
     let mode = CoreProperty<IntConverter>(name: "mode", uuid: CBUUID(string: "70d4cabe-82cc-470a-a572-95c23f1316ff"))
-    let brightness = CoreProperty<DoubleConverter>(name: "brightness", uuid: CBUUID(string: "2B01"))
+    let brightness = CoreProperty<IntConverter>(name: "brightness", uuid: CBUUID(string: "2B01"))
     let tau = CoreProperty<DoubleConverter>(name: "tau", uuid: CBUUID(string: "d879c81a-09f0-4a24-a66c-cebf358bb97a"))
     let phi = CoreProperty<DoubleConverter>(name: "phi", uuid: CBUUID(string: "df6f0905-09bd-4bf6-b6f5-45b5a4d20d52"))
     let name = CoreProperty<StringConverter>(name: "name", uuid: CBUUID(string: "7ad50f2a-01b5-4522-9792-d3fd4af5942f"))
@@ -55,6 +57,13 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     {
         print("Discovering services...")
         device.discoverServices([shinerServiceUUID])
+    }
+    
+    public func write(newValue: String, to prop: CorePropertyBase)
+    {
+        guard let data = newValue.data(using: .utf8, allowLossyConversion: false) else { return }
+        print("Writing prop \(prop.name) = \(newValue)")
+        device.writeValue(data, for: prop.characteristic, type: .withResponse)
     }
     
     public var id: UUID { device.identifier }
@@ -91,6 +100,10 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         
         for char in chars
         {
+            let uuid = char.uuid
+            guard let prop = properties[uuid.uuidString]
+            else { continue }
+            prop.characteristic = char
             device.readValue(for: char)
         }
     }
@@ -112,9 +125,14 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         
         print("Read characteristic \(prop.name) as \(str).")
 
-        DispatchQueue.main.async { [weak self] in
-            self?.objectWillChange.send()
-            prop.rawValue = str
+        self.objectWillChange.send()
+        prop.rawValue = str
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
+        if let error = error {
+            // todo: propagate to UI
+            print("Failed to write characteristic: \(String(describing: error))")
         }
     }
 }
