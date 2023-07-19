@@ -64,6 +64,8 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         guard let data = newValue.data(using: .utf8, allowLossyConversion: false) else { return }
         print("Writing prop \(prop.name) = \(newValue)")
         device.writeValue(data, for: prop.characteristic, type: .withResponse)
+        self.objectWillChange.send()
+        prop.rawValue = newValue
     }
     
     public var id: UUID { device.identifier }
@@ -133,6 +135,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         if let error = error {
             // todo: propagate to UI
             print("Failed to write characteristic: \(String(describing: error))")
+            return
         }
     }
 }

@@ -70,8 +70,8 @@ struct SliderPropBox: View {
         .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
-        .onAppear {
-            value = Double(prop.convertedValue() ?? 0)
-        }
+        .onReceive(prop.objectWillChange, perform: {
+             value = Double(prop.convertedValue() ?? 0)
+        })
     }
 }
