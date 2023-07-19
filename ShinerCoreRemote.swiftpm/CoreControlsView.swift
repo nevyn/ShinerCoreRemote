@@ -13,10 +13,10 @@ struct CoreControlsView: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 StringPropBox(title: "Primary color", core: core, prop: core.color)
                 StringPropBox(title: "Secondary color", core: core, prop: core.color2)
-                SliderPropBox(title: "Brightness", core: core, prop: core.brightness)
-                StringPropBox(title: "Mode", core: core, prop: core.mode)
-                StringPropBox(title: "Tau", core: core, prop: core.tau)
-                StringPropBox(title: "Phi", core: core, prop: core.phi)
+                IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0...255.0)
+                IntSliderPropBox(title: "Mode", core: core, prop: core.mode, range: 0...3)
+                DoubleSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0...80.0)
+                DoubleSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0...80.0)
                 StringPropBox(title: "Owner's name", core: core, prop: core.name)
             }
         }
@@ -44,11 +44,11 @@ struct StringPropBox: View {
     }
 }
 
-struct SliderPropBox: View {
+struct IntSliderPropBox: View {
     let title: String
     let core: ShinerCore
     @ObservedObject var prop: CoreProperty<IntConverter>
-    let range = 0.0...255.0
+    let range: ClosedRange<Double>
     
     var body: some View {
         VStack {
@@ -59,6 +59,35 @@ struct SliderPropBox: View {
                     Double(prop.convertedValue() ?? 0)
                 }, set: { newValue in 
                     core.write(newValue: prop.unconvertedValue(value: Int(newValue)), to: prop)
+                }),
+                in: range
+            )
+            Text(prop.rawValue ?? "...")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
+        .padding()
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(8)
+    }
+}
+
+struct DoubleSliderPropBox: View {
+    let title: String
+    let core: ShinerCore
+    @ObservedObject var prop: CoreProperty<DoubleConverter>
+    let range: ClosedRange<Double>
+    
+    var body: some View {
+        VStack {
+            Text(title)
+                .font(.headline)
+            Slider(
+                value: Binding(get: {
+                    prop.convertedValue() ?? 0.0
+                }, set: { newValue in 
+                    core.write(newValue: prop.unconvertedValue(value: newValue), to: prop)
                 }),
                 in: range
             )
