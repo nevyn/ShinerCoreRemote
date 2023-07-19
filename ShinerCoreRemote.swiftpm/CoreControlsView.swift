@@ -48,7 +48,6 @@ struct SliderPropBox: View {
     let title: String
     let core: ShinerCore
     @ObservedObject var prop: CoreProperty<IntConverter>
-    @State var value: Double = 0.0
     let range = 0.0...255.0
     
     var body: some View {
@@ -56,12 +55,13 @@ struct SliderPropBox: View {
             Text(title)
                 .font(.headline)
             Slider(
-                value: $value,
+                value: Binding(get: {
+                    Double(prop.convertedValue() ?? 0)
+                }, set: { newValue in 
+                    core.write(newValue: prop.unconvertedValue(value: Int(newValue)), to: prop)
+                }),
                 in: range
             )
-                .onChange(of: value, perform: {newValue in 
-                    core.write(newValue: prop.unconvertedValue(value: Int(newValue)), to: prop)
-                })
             Text(prop.rawValue ?? "...")
                 .font(.subheadline)
                 .foregroundColor(.gray)
@@ -70,8 +70,5 @@ struct SliderPropBox: View {
         .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
-        .onReceive(prop.objectWillChange, perform: {
-             value = Double(prop.convertedValue() ?? 0)
-        })
     }
 }
