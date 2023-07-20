@@ -8,6 +8,7 @@ class CorePropertyBase : ObservableObject
     let name: String
     @objc let uuid: CBUUID
     @Published @objc var rawValue: String? = nil
+    let throttler = Throttler(duration: 0.1)
     
     fileprivate var characteristic: CBCharacteristic! = nil    
     
@@ -62,11 +63,15 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     
     public func write(newValue: String, to prop: CorePropertyBase)
     {
-        guard let data = newValue.data(using: .utf8, allowLossyConversion: false) else { return }
-        print("Writing prop \(prop.name) = \(newValue)")
-        device.writeValue(data, for: prop.characteristic, type: .withResponse)
         self.objectWillChange.send()
         prop.rawValue = newValue
+        prop.throttler.submit { [weak self] in
+            guard let self = self else { return }
+            guard let data = prop.rawValue?.data(using: .utf8, allowLossyConversion: false) else { return }
+            print("Writing prop \(prop.name) = \(prop.rawValue!)")
+            device.writeValue(data, for: prop.characteristic, type: .withResponse)
+
+        }
     }
     
     public var id: UUID { device.identifier }
@@ -313,5 +318,32 @@ extension Color {
         var t = (CGFloat(), CGFloat(), CGFloat(), CGFloat())
         color.getHue(&t.0, saturation: &t.1, brightness: &t.2, alpha: &t.3)
         return t
+    }
+}
+
+class Throttler
+{
+    private let duration: TimeInterval
+    private var task: Task<Void, Error>?
+    
+    init(duration: TimeInterval)
+    {
+        self.duration = duration
+    }
+    
+    func submit(operation: @escaping () async -> Void)
+    {
+        guard task == nil else { return }
+        
+        task = Task {
+            try? await sleep()
+            await operation()
+            task = nil
+        }
+    }
+    
+    func sleep() async throws
+    {
+        try await Task.sleep(nanoseconds: UInt64(duration * TimeInterval(NSEC_PER_SEC)))
     }
 }
