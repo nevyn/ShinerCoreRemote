@@ -12,8 +12,8 @@ struct CoreListView : View {
                 Label("To configure a ShinerCore's light animations, connect it to a power source (such as a power bank), and hold it near the phone. It will appear in the list below.", systemImage: "info.circle.fill")
                     .italic(true)
                     .padding()
-                    .background(.gray.opacity(0.2))
-                    .cornerRadius(8)
+                    .background(.blue.opacity(0.2))
+                    .cornerRadius(16)
 
                 
                 
@@ -31,6 +31,7 @@ struct CoreListView : View {
                 }
             }
             .navigationTitle("Nearby cores ✨")
+            .background(Color.gray.opacity(0.1))
         }
         .onAppear {
             coreManager.foundCore = { core in
