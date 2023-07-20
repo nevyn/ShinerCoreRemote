@@ -13,7 +13,7 @@ struct CoreControlsView: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 ColorPropBox(title: "Primary color", core: core, prop: core.color)
                 ColorPropBox(title: "Secondary color", core: core, prop: core.color2)
-                DoubleSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.0 ... 20.0)
+                DoubleLogSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.01 ... 60.0)
                 IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
                 IntSliderPropBox(title: "Mode", core: core, prop: core.mode, range: 0...3)
                 DoubleSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.0 ... 80.0)
@@ -106,7 +106,36 @@ struct DoubleSliderPropBox: View {
                 .font(.headline)
             Slider(
                 value: Binding(get: {
-                    prop.convertedValue() ?? 0.0
+                    prop.convertedValue() ?? range.lowerBound
+                }, set: { newValue in 
+                    core.write(newValue: prop.unconvertedValue(value: newValue), to: prop)
+                }),
+                in: range
+            )
+            Text(prop.rawValue ?? "...")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+        }
+        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
+        .padding()
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(8)
+    }
+}
+
+struct DoubleLogSliderPropBox: View {
+    let title: String
+    let core: ShinerCore
+    @ObservedObject var prop: CoreProperty<DoubleConverter>
+    let range: ClosedRange<Double>
+    
+    var body: some View {
+        VStack {
+            Text(title)
+                .font(.headline)
+            Slider.withLog10Scale(
+                value: Binding(get: {
+                    prop.convertedValue() ?? range.lowerBound
                 }, set: { newValue in 
                     core.write(newValue: prop.unconvertedValue(value: newValue), to: prop)
                 }),
@@ -148,3 +177,33 @@ struct ColorPropBox: View {
     }
 }
 
+
+
+// https://gist.github.com/prachigauriar/c508799bad359c3aa271ccc0865de231
+extension Binding where Value == Double {
+    func logarithmic(base: Double = 10) -> Binding<Double> {
+        Binding(
+            get: {
+                log10(self.wrappedValue) / log10(base)
+            },
+            set: { newValue in
+                self.wrappedValue = pow(base, newValue)
+            }
+        )
+    }
+}
+
+
+extension Slider where Label == EmptyView, ValueLabel == EmptyView {
+    static func withLog10Scale(
+        value: Binding<Double>,
+        in range: ClosedRange<Double>,
+        onEditingChanged: @escaping (Bool) -> Void = { _ in }
+    ) -> Slider {
+        return self.init(
+            value: value.logarithmic(),
+            in: log10(range.lowerBound) ... log10(range.upperBound),
+            onEditingChanged: onEditingChanged
+        )
+    }
+}
