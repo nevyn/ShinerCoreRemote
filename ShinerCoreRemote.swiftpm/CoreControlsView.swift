@@ -29,19 +29,39 @@ struct StringPropBox: View {
     let title: String
     let core: ShinerCore
     @ObservedObject var prop: CorePropertyBase
+    @State private var editingAlert = false
+    @State private var name = ""
     
     var body: some View {
         VStack {
             Text(title)
                 .font(.headline)
-            Text(prop.rawValue ?? "...")
-                .font(.subheadline)
-                .foregroundColor(.gray)
+                .padding()
+            Button(action: changeAlert) {
+                Label(prop.rawValue ?? "...", systemImage: "square.and.pencil")
+                    .font(.headline)
+            }
+            .alert("Change core's name", isPresented: $editingAlert) {
+                TextField("Enter your name", text: $name)
+                Button("OK", action: submit)
+            } message: {
+                Text("Use your own nickname, and the core will rename itself to say it belongs to you.")
+            }
         }
         .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
         .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
+    }
+    
+    func changeAlert()
+    {
+        editingAlert = true
+    }
+    
+    func submit()
+    {
+        core.write(newValue: name, to: prop)
     }
 }
 
