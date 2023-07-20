@@ -9,6 +9,14 @@ struct CoreListView : View {
     var body: some View {
         NavigationView {
             VStack {
+                Label("To configure a ShinerCore's light animations, connect it to a power source (such as a power bank), and hold it near the phone. It will appear in the list below.", systemImage: "info.circle.fill")
+                    .italic(true)
+                    .padding()
+                    .background(.gray.opacity(0.2))
+                    .cornerRadius(8)
+
+                
+                
                 List(cores, id: \.self) { core in
                     NavigationLink(
                         destination: CoreControlsView(core: core),
