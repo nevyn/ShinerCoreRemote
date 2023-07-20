@@ -19,7 +19,7 @@ let package = Package(
             bundleIdentifier: "jpg.nevyn.shinerconf",
             teamIdentifier: "M4Q2TE45WT",
             displayVersion: "1.0",
-            bundleVersion: "1",
+            bundleVersion: "2",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.purple),
             supportedDeviceFamilies: [

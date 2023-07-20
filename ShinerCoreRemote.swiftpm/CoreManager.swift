@@ -147,6 +147,7 @@ class CoreManager: NSObject, ObservableObject, CBCentralManagerDelegate
     var foundCore: ((ShinerCore) -> Void)!
     var lostCore: ((ShinerCore) -> Void)!
     var connectedCore: ((ShinerCore) -> Void)!
+    var disconnectedCore: ((ShinerCore) -> Void)!
     
     private var cores: [ShinerCore] = []
     
@@ -165,6 +166,11 @@ class CoreManager: NSObject, ObservableObject, CBCentralManagerDelegate
     {
         print("Connecting to core \(core.localName)")
         centralManager.connect(core.device)
+    }
+    
+    func disconnect(from core: ShinerCore)
+    {
+        centralManager.cancelPeripheralConnection(core.device)
     }
     
     // CBCentralManagerDelegate methods
@@ -196,6 +202,12 @@ class CoreManager: NSObject, ObservableObject, CBCentralManagerDelegate
         print("Connected to core \(core.localName)")
         connectedCore(core)
         core.read()
+    }
+    
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        guard let core = cores.first(where: {$0.device == peripheral}) else { return }
+        print("Disconnected from core \(core.localName)")
+        disconnectedCore(core)
     }
     
     func centralManager(_ central: CBCentralManager, didFailToConnect: CBPeripheral, error: Error?)
