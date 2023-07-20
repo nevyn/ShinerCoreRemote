@@ -16,8 +16,8 @@ struct CoreControlsView: View {
                 DoubleLogSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.01 ... 60.0)
                 IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
                 IntSliderPropBox(title: "Mode", core: core, prop: core.mode, range: 0...3)
-                DoubleSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.0 ... 80.0)
-                DoubleSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0.0 ... 80.0)
+                DoubleLogSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.01 ... 80.0)
+                DoubleLogSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0.01 ... 80.0)
                 StringPropBox(title: "Owner's name", core: core, prop: core.name)
             }
         }
