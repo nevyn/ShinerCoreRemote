@@ -16,9 +16,11 @@ let package = Package(
         .iOSApplication(
             name: "ShinerCore Remote",
             targets: ["AppModule"],
+            bundleIdentifier: "jpg.nevyn.shinerconf",
+            teamIdentifier: "M4Q2TE45WT",
             displayVersion: "1.0",
             bundleVersion: "1",
-            appIcon: .placeholder(icon: .palette),
+            appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.purple),
             supportedDeviceFamilies: [
                 .pad,
@@ -32,7 +34,8 @@ let package = Package(
             ],
             capabilities: [
                 .bluetoothAlways(purposeString: "Bluetooth is used to connect and configure your ShinerCore.")
-            ]
+            ],
+            appCategory: .developerTools
         )
     ],
     targets: [
