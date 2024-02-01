@@ -6,3 +6,7 @@ firmware for ESP32 controllers to make pretty animations on addressable RGB LED 
 
 This app lets you configure a ShinerCore device over Bluetooth, changing animation patterns, colors,
 speeds, etcetra.
+
+![](/img/cores.jpg)
+![](/img/core.jpg)
+
