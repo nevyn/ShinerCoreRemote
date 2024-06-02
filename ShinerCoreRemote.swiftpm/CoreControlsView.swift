@@ -11,14 +11,15 @@ struct CoreControlsView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
+                SwitchPropBox(title: "Lights on", core: core, prop: core.mode)
+                StringPropBox(title: "Owner's name", core: core, prop: core.name)
                 ColorPropBox(title: "Primary color", core: core, prop: core.color)
                 ColorPropBox(title: "Secondary color", core: core, prop: core.color2)
                 DoubleLogSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.01 ... 60.0)
                 IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
-                IntSliderPropBox(title: "Mode", core: core, prop: core.mode, range: 0...3)
                 DoubleLogSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.01 ... 80.0)
                 DoubleLogSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0.01 ... 80.0)
-                StringPropBox(title: "Owner's name", core: core, prop: core.name)
+                
             }
         }
         .navigationBarTitle(core.localName)
@@ -48,7 +49,7 @@ struct StringPropBox: View {
                 Text("Use your own nickname, and the core will rename itself to say it belongs to you.")
             }
         }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
+        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 64)
         .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
@@ -88,6 +89,27 @@ struct IntSliderPropBox: View {
                 .foregroundColor(.gray)
         }
         .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
+        .padding()
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(8)
+    }
+}
+
+struct SwitchPropBox: View {
+    let title: String
+    let core: ShinerCore
+    @ObservedObject var prop: CoreProperty<IntConverter>
+    
+    var body: some View {
+        VStack {
+            Toggle(title, isOn: Binding(get: {
+                guard let ret = prop.convertedValue() else { return false }
+                return ret > 0 ? true : false
+            }, set: { newValue in
+                core.write(newValue: prop.unconvertedValue(value: newValue ? 1 : 0), to: prop)
+            }))
+        }
+        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 64)
         .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
