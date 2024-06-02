@@ -19,7 +19,9 @@ struct CoreControlsView: View {
                 selection: Binding(get: {
                     core.layer.convertedValue() ?? 0
                 }, set: { newValue in
-                    core.write(newValue: core.layer.unconvertedValue(value: Int(newValue)), to: core.layer)
+                    let newLayer = Int(newValue)
+                    
+                    core.switchTo(layer: newLayer)
                 })) {
                     ForEach(1..<9) {
                         Text($0.description).tag($0)

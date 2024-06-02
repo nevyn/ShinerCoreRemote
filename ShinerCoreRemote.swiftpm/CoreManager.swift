@@ -79,6 +79,31 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     public var id: UUID { device.identifier }
     public var localName: String { device.name ?? "Unknown" }
     
+    public func switchTo(layer newLayer: Int)
+    {
+        write(newValue: layer.unconvertedValue(value: newLayer), to: layer)
+        fetchProps()
+    }
+    
+    var service: CBService?
+    func fetchProps()
+    {
+        guard let chars = service?.characteristics else
+        {
+            print("lol no characteristics")
+            return
+        }
+        
+        print("Reading characteristics...")
+        for char in chars
+        {
+            let uuid = char.uuid
+            guard let prop = properties[uuid.uuidString]
+            else { continue }
+            prop.characteristic = char
+            device.readValue(for: char)
+        }
+    }
     
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?)
     {
@@ -98,24 +123,10 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         device.discoverCharacteristics(nil, for: shinerService)
     }
     
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?)
+    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor serv: CBService, error: Error?)
     {
-        guard let chars = service.characteristics else
-        {
-            print("lol no characteristics")
-            return
-        }
-        
-        print("Reading characteristics...")
-        
-        for char in chars
-        {
-            let uuid = char.uuid
-            guard let prop = properties[uuid.uuidString]
-            else { continue }
-            prop.characteristic = char
-            device.readValue(for: char)
-        }
+        service = serv
+        fetchProps()
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?)
