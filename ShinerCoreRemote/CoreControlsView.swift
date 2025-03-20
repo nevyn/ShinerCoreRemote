@@ -54,7 +54,7 @@ struct CoreControlsView: View {
                 }
             }
         }
-        .navigationBarTitle(core.localName)
+        .navigationTitle(core.localName)
     }
 }
 
