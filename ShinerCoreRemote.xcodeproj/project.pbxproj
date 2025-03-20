@@ -10,9 +10,22 @@
 		056671CF2D8C88DB008978F9 /* ShinerCoreRemote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShinerCoreRemote.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		058D9CEC2D8C9472009C098F /* Exceptions for "ShinerCoreRemote" folder in "ShinerCoreRemote" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 056671CE2D8C88DB008978F9 /* ShinerCoreRemote */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		056671D12D8C88DB008978F9 /* ShinerCoreRemote */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				058D9CEC2D8C9472009C098F /* Exceptions for "ShinerCoreRemote" folder in "ShinerCoreRemote" target */,
+			);
 			path = ShinerCoreRemote;
 			sourceTree = "<group>";
 		};
@@ -252,6 +265,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShinerCoreRemote/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ShinerCore;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth is used to connect and configure your ShinerCore.";
@@ -294,6 +308,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ShinerCoreRemote/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ShinerCore;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth is used to connect and configure your ShinerCore.";
