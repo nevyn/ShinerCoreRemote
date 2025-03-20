@@ -9,6 +9,7 @@ class CorePropertyBase : ObservableObject
     @objc let uuid: CBUUID
     @Published @objc var rawValue: String? = nil
     let throttler = Throttler(duration: 0.1)
+    @Published var available = false
     
     fileprivate var characteristic: CBCharacteristic! = nil    
     
@@ -101,6 +102,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
             guard let prop = properties[uuid.uuidString]
             else { continue }
             prop.characteristic = char
+            prop.available = true
             device.readValue(for: char)
         }
     }

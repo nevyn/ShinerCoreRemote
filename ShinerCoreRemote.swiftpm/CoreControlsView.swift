@@ -14,30 +14,44 @@ struct CoreControlsView: View {
                 SwitchPropBox(title: "Lights on", core: core, prop: core.mode)
                 StringPropBox(title: "Owner's name", core: core, prop: core.name)
             }
-
-            /*Picker("Layer",
-                selection: Binding(get: {
-                    core.layer.convertedValue() ?? 0
-                }, set: { newValue in
-                    let newLayer = Int(newValue)
-                    
-                    core.switchTo(layer: newLayer)
-                })) {
-                    ForEach(1..<9) {
-                        Text($0.description).tag($0)
-                    }
-                }.pickerStyle(SegmentedPickerStyle()
-            )*/
+            if core.layer.available {
+                Picker("Layer",
+                    selection: Binding(get: {
+                        core.layer.convertedValue() ?? 0
+                    }, set: { newValue in
+                        let newLayer = Int(newValue)
+                        
+                        core.switchTo(layer: newLayer)
+                    })) {
+                        ForEach(1..<9) {
+                            Text($0.description).tag($0)
+                        }
+                    }.pickerStyle(SegmentedPickerStyle()
+                )
+            }
 
             LazyVGrid(columns: columns, spacing: 16) {
-                ColorPropBox(title: "Primary color", core: core, prop: core.color)
-                ColorPropBox(title: "Secondary color", core: core, prop: core.color2)
-                /*IntSliderPropBox(title: "Animation", core: core, prop: core.animation, range: 0.0 ... 10.0)*/
-                DoubleLogSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.01 ... 60.0)
-                DoubleLogSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.01 ... 80.0)
-                DoubleLogSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0.01 ... 80.0)
-                IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
-                
+                if core.color.available {
+                    ColorPropBox(title: "Primary color", core: core, prop: core.color)
+                }
+                if core.color2.available {
+                    ColorPropBox(title: "Secondary color", core: core, prop: core.color2)
+                }
+                if core.animation.available {
+                    IntSliderPropBox(title: "Animation", core: core, prop: core.animation, range: 0.0 ... 10.0)
+                }
+                if core.speed.available {
+                    DoubleLogSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.01 ... 60.0)
+                }
+                if core.tau.available {
+                    DoubleLogSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.01 ... 80.0)
+                }
+                if core.phi.available {
+                    DoubleLogSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0.01 ... 80.0)
+                }
+                if core.brightness.available {
+                    IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
+                }
             }
         }
         .navigationBarTitle(core.localName)
