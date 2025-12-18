@@ -44,8 +44,9 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     let phi = CoreProperty<DoubleConverter>(name: "phi", uuid: CBUUID(string: "df6f0905-09bd-4bf6-b6f5-45b5a4d20d52"))
     let name = CoreProperty<StringConverter>(name: "name", uuid: CBUUID(string: "7ad50f2a-01b5-4522-9792-d3fd4af5942f"))
     let layer = CoreProperty<IntConverter>(name: "layer", uuid: CBUUID(string: "0a7eadd8-e4b8-4384-8308-e67a32262cc4"))
-    let animation = CoreProperty<IntConverter>(name: "animation", uuid: CBUUID(string: "bee29c30-aa11-45b2-b5a2-8ff8d0bab262"))
+    let animation = CoreProperty<StringConverter>(name: "animation", uuid: CBUUID(string: "bee29c30-aa11-45b2-b5a2-8ff8d0bab262"))
     let blendMode = CoreProperty<StringConverter>(name: "blendMode", uuid: CBUUID(string: "03686c5c-6e6f-44f0-943f-db6388d9fdd4"))
+    let ledOrder = CoreProperty<StringConverter>(name: "ledOrder", uuid: CBUUID(string: "f3b7c8a1-5d2e-4f19-8c6a-9e1d0b2c3a4f"))
     let documentation = CoreProperty<DocumentationConverter>(name: "documentation", uuid: CBUUID(string: "76db9199-21af-4207-a23c-dc138a6cd42d"))
     var properties: [String: CorePropertyBase] = [:]
     
@@ -55,7 +56,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         self.device = device
         super.init()
         device.delegate = self
-        for prop in [color, color2, speed, mode, brightness, tau, phi, name, layer, animation, blendMode, documentation] {
+        for prop in [color, color2, speed, mode, brightness, tau, phi, name, layer, animation, blendMode, ledOrder, documentation] {
             properties[prop.uuid.uuidString] = prop
         }
     }
@@ -284,6 +285,7 @@ struct IntConverter: PropertyConverter {
 struct Documentation: Equatable {
     let blendModes: [String]
     let animations: [String]
+    let ledColorOrders: [String]
 }
 
 struct DocumentationConverter: PropertyConverter {
@@ -299,7 +301,8 @@ struct DocumentationConverter: PropertyConverter {
             }
             let blendModes = json["blendModes"] as? [String] ?? []
             let animations = json["animations"] as? [String] ?? []
-            return Documentation(blendModes: blendModes, animations: animations)
+            let ledColorOrders = json["ledColorOrders"] as? [String] ?? []
+            return Documentation(blendModes: blendModes, animations: animations, ledColorOrders: ledColorOrders)
         } catch {
             print("Failed to parse documentation JSON: \(error)")
             return nil

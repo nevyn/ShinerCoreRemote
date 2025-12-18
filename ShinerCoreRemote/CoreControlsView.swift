@@ -13,6 +13,9 @@ struct CoreControlsView: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 SwitchPropBox(title: "Lights on", core: core, prop: core.mode)
                 StringPropBox(title: "Owner's name", core: core, prop: core.name)
+                if core.ledOrder.available {
+                    DropDownPropBox(title: "LED Order", core: core, prop: core.ledOrder, options: core.documentation.convertedValue()?.ledColorOrders ?? [])
+                }
             }
             if core.layer.available {
                 Picker("Layer",
@@ -38,10 +41,10 @@ struct CoreControlsView: View {
                     ColorPropBox(title: "Secondary color", core: core, prop: core.color2)
                 }
                 if core.blendMode.available {
-                    BlendModePropBox(title: "Blend Mode", core: core, prop: core.blendMode, documentation: core.documentation)
+                    DropDownPropBox(title: "Blend Mode", core: core, prop: core.blendMode, options: core.documentation.convertedValue()?.blendModes ?? [])
                 }
                 if core.animation.available {
-                    IntSliderPropBox(title: "Animation", core: core, prop: core.animation, range: 0.0 ... 10.0)
+                    DropDownPropBox(title: "Animation", core: core, prop: core.animation, options: core.documentation.convertedValue()?.animations ?? [])
                 }
                 if core.speed.available {
                     DoubleLogSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.01 ... 60.0)
@@ -234,23 +237,19 @@ struct ColorPropBox: View {
     }
 }
 
-struct BlendModePropBox: View {
+struct DropDownPropBox: View {
     let title: String
     let core: ShinerCore
     @ObservedObject var prop: CoreProperty<StringConverter>
-    @ObservedObject var documentation: CoreProperty<DocumentationConverter>
-    
-    private var blendModes: [String] {
-        documentation.convertedValue()?.blendModes ?? []
-    }
+    let options: [String]
     
     private var currentIndex: Int {
         guard let current = prop.convertedValue() else { return 0 }
-        return blendModes.firstIndex(of: current) ?? 0
+        return options.firstIndex(of: current) ?? 0
     }
     
-    private var hasDocumentation: Bool {
-        documentation.available && !blendModes.isEmpty
+    private var hasOptions: Bool {
+        !options.isEmpty
     }
     
     var body: some View {
@@ -258,7 +257,7 @@ struct BlendModePropBox: View {
             Text(title)
                 .font(.headline)
             
-            if hasDocumentation {
+            if hasOptions {
                 // Stepper arrows with current value
                 HStack(spacing: 12) {
                     Button(action: stepBackward) {
@@ -268,13 +267,13 @@ struct BlendModePropBox: View {
                     .disabled(currentIndex <= 0)
                     
                     Menu {
-                        ForEach(blendModes, id: \.self) { mode in
+                        ForEach(options, id: \.self) { option in
                             Button(action: {
-                                core.write(newValue: mode, to: prop)
+                                core.write(newValue: option, to: prop)
                             }) {
                                 HStack {
-                                    Text(mode)
-                                    if mode == prop.convertedValue() {
+                                    Text(option)
+                                    if option == prop.convertedValue() {
                                         Image(systemName: "checkmark")
                                     }
                                 }
@@ -294,10 +293,10 @@ struct BlendModePropBox: View {
                         Image(systemName: "chevron.right.circle.fill")
                             .font(.title2)
                     }
-                    .disabled(currentIndex >= blendModes.count - 1)
+                    .disabled(currentIndex >= options.count - 1)
                 }
             } else {
-                // Fallback: just show the raw value when documentation isn't available
+                // Fallback: just show the raw value when options aren't available
                 Text(prop.rawValue ?? "...")
                     .font(.body)
                     .foregroundColor(.secondary)
@@ -311,14 +310,14 @@ struct BlendModePropBox: View {
     
     private func stepBackward() {
         guard currentIndex > 0 else { return }
-        let newMode = blendModes[currentIndex - 1]
-        core.write(newValue: newMode, to: prop)
+        let newValue = options[currentIndex - 1]
+        core.write(newValue: newValue, to: prop)
     }
     
     private func stepForward() {
-        guard currentIndex < blendModes.count - 1 else { return }
-        let newMode = blendModes[currentIndex + 1]
-        core.write(newValue: newMode, to: prop)
+        guard currentIndex < options.count - 1 else { return }
+        let newValue = options[currentIndex + 1]
+        core.write(newValue: newValue, to: prop)
     }
 }
 
