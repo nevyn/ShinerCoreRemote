@@ -26,7 +26,7 @@ struct CoreControlsView: View {
                         
                         core.switchTo(layer: newLayer)
                     })) {
-                        ForEach(1..<9) {
+                        ForEach(0..<10) {
                             Text($0.description).tag($0)
                         }
                     }.pickerStyle(SegmentedPickerStyle()
