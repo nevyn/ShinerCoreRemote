@@ -45,6 +45,8 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     let name = CoreProperty<StringConverter>(name: "name", uuid: CBUUID(string: "7ad50f2a-01b5-4522-9792-d3fd4af5942f"))
     let layer = CoreProperty<IntConverter>(name: "layer", uuid: CBUUID(string: "0a7eadd8-e4b8-4384-8308-e67a32262cc4"))
     let animation = CoreProperty<IntConverter>(name: "animation", uuid: CBUUID(string: "bee29c30-aa11-45b2-b5a2-8ff8d0bab262"))
+    let blendMode = CoreProperty<StringConverter>(name: "blendMode", uuid: CBUUID(string: "03686c5c-6e6f-44f0-943f-db6388d9fdd4"))
+    let documentation = CoreProperty<DocumentationConverter>(name: "documentation", uuid: CBUUID(string: "76db9199-21af-4207-a23c-dc138a6cd42d"))
     var properties: [String: CorePropertyBase] = [:]
     
     let device: CBPeripheral
@@ -53,7 +55,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         self.device = device
         super.init()
         device.delegate = self
-        for prop in [color, color2, speed, mode, brightness, tau, phi, name, layer, animation] {
+        for prop in [color, color2, speed, mode, brightness, tau, phi, name, layer, animation, blendMode, documentation] {
             properties[prop.uuid.uuidString] = prop
         }
     }
@@ -276,6 +278,37 @@ struct IntConverter: PropertyConverter {
     
     func unconvert(_ value: Int) -> String {
         return String(value)
+    }
+}
+
+struct Documentation: Equatable {
+    let blendModes: [String]
+    let animations: [String]
+}
+
+struct DocumentationConverter: PropertyConverter {
+    typealias ValueType = Documentation
+    init() {}
+    func convert(_ string: String?) -> Documentation? {
+        guard let string = string,
+              let data = string.data(using: .utf8) else { return nil }
+        
+        do {
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return nil
+            }
+            let blendModes = json["blendModes"] as? [String] ?? []
+            let animations = json["animations"] as? [String] ?? []
+            return Documentation(blendModes: blendModes, animations: animations)
+        } catch {
+            print("Failed to parse documentation JSON: \(error)")
+            return nil
+        }
+    }
+    
+    func unconvert(_ value: Documentation) -> String {
+        // Documentation is read-only, but we need to implement this
+        return ""
     }
 }
 

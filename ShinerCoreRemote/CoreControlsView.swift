@@ -37,6 +37,9 @@ struct CoreControlsView: View {
                 if core.color2.available {
                     ColorPropBox(title: "Secondary color", core: core, prop: core.color2)
                 }
+                if core.blendMode.available {
+                    BlendModePropBox(title: "Blend Mode", core: core, prop: core.blendMode, documentation: core.documentation)
+                }
                 if core.animation.available {
                     IntSliderPropBox(title: "Animation", core: core, prop: core.animation, range: 0.0 ... 10.0)
                 }
@@ -228,6 +231,94 @@ struct ColorPropBox: View {
         .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(8)
+    }
+}
+
+struct BlendModePropBox: View {
+    let title: String
+    let core: ShinerCore
+    @ObservedObject var prop: CoreProperty<StringConverter>
+    @ObservedObject var documentation: CoreProperty<DocumentationConverter>
+    
+    private var blendModes: [String] {
+        documentation.convertedValue()?.blendModes ?? []
+    }
+    
+    private var currentIndex: Int {
+        guard let current = prop.convertedValue() else { return 0 }
+        return blendModes.firstIndex(of: current) ?? 0
+    }
+    
+    private var hasDocumentation: Bool {
+        documentation.available && !blendModes.isEmpty
+    }
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.headline)
+            
+            if hasDocumentation {
+                // Stepper arrows with current value
+                HStack(spacing: 12) {
+                    Button(action: stepBackward) {
+                        Image(systemName: "chevron.left.circle.fill")
+                            .font(.title2)
+                    }
+                    .disabled(currentIndex <= 0)
+                    
+                    Menu {
+                        ForEach(blendModes, id: \.self) { mode in
+                            Button(action: {
+                                core.write(newValue: mode, to: prop)
+                            }) {
+                                HStack {
+                                    Text(mode)
+                                    if mode == prop.convertedValue() {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Text(prop.convertedValue() ?? "...")
+                            .font(.body)
+                            .frame(minWidth: 80)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(6)
+                    }
+                    
+                    Button(action: stepForward) {
+                        Image(systemName: "chevron.right.circle.fill")
+                            .font(.title2)
+                    }
+                    .disabled(currentIndex >= blendModes.count - 1)
+                }
+            } else {
+                // Fallback: just show the raw value when documentation isn't available
+                Text(prop.rawValue ?? "...")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 100)
+        .padding()
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(8)
+    }
+    
+    private func stepBackward() {
+        guard currentIndex > 0 else { return }
+        let newMode = blendModes[currentIndex - 1]
+        core.write(newValue: newMode, to: prop)
+    }
+    
+    private func stepForward() {
+        guard currentIndex < blendModes.count - 1 else { return }
+        let newMode = blendModes[currentIndex + 1]
+        core.write(newValue: newMode, to: prop)
     }
 }
 
