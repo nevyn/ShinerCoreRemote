@@ -86,7 +86,9 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     public func switchTo(layer newLayer: Int)
     {
         write(newValue: layer.unconvertedValue(value: newLayer), to: layer)
-        fetchProps()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.fetchProps()
+        }
     }
     
     var service: CBService?
