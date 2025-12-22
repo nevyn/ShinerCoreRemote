@@ -19,6 +19,9 @@ struct CoreControlsView: View {
                 if core.ledOrder.available {
                     DropDownPropBox(title: "LED Order", core: core, prop: core.ledOrder, options: core.documentation.convertedValue()?.ledColorOrders ?? [])
                 }
+                if core.ledCount.available {
+                    IntSliderPropBox(title: "Number of LEDs", core: core, prop: core.ledCount, range: 0.0 ... 800.0)
+                }
             }
             if core.layer.available {
                 Picker("Layer",
