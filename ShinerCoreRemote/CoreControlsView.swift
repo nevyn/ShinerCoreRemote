@@ -12,6 +12,9 @@ struct CoreControlsView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
                 SwitchPropBox(title: "Lights on", core: core, prop: core.mode)
+                if core.brightness.available {
+                    IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
+                }
                 StringPropBox(title: "Owner's name", core: core, prop: core.name)
                 if core.ledOrder.available {
                     DropDownPropBox(title: "LED Order", core: core, prop: core.ledOrder, options: core.documentation.convertedValue()?.ledColorOrders ?? [])
@@ -54,9 +57,6 @@ struct CoreControlsView: View {
                 }
                 if core.phi.available {
                     DoubleLogSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0.01 ... 80.0)
-                }
-                if core.brightness.available {
-                    IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
                 }
             }
         }
