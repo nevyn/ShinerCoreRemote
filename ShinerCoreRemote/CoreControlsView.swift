@@ -23,6 +23,19 @@ struct CoreControlsView: View {
                     IntSliderPropBox(title: "Number of LEDs", core: core, prop: core.ledCount, range: 0.0 ... 800.0)
                 }
             }
+            if core.preset.available {
+                Picker("Preset",
+                    selection: Binding(get: {
+                        core.preset.convertedValue() ?? 0
+                    }, set: { newValue in
+                        core.switchTo(preset: Int(newValue))
+                    })) {
+                        ForEach(0..<5) {
+                            Text("Preset \($0)").tag($0)
+                        }
+                    }.pickerStyle(SegmentedPickerStyle()
+                )
+            }
             if core.layer.available {
                 Picker("Layer",
                     selection: Binding(get: {
