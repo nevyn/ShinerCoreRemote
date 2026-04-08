@@ -24,32 +24,36 @@ struct CoreControlsView: View {
                 }
             }
             if core.preset.available {
-                Picker("Preset",
-                    selection: Binding(get: {
-                        core.preset.convertedValue() ?? 0
-                    }, set: { newValue in
-                        core.switchTo(preset: Int(newValue))
-                    })) {
-                        ForEach(0..<5) {
-                            Text("Preset \($0)").tag($0)
-                        }
-                    }.pickerStyle(SegmentedPickerStyle()
-                )
+                HStack {
+                    Text("Preset:").font(.headline)
+                    Picker("Preset",
+                        selection: Binding(get: {
+                            core.preset.convertedValue() ?? 0
+                        }, set: { newValue in
+                            core.switchTo(preset: Int(newValue))
+                        })) {
+                            ForEach(0..<5) {
+                                Text($0.description).tag($0)
+                            }
+                        }.pickerStyle(SegmentedPickerStyle()
+                    )
+                }
             }
             if core.layer.available {
-                Picker("Layer",
-                    selection: Binding(get: {
-                        core.layer.convertedValue() ?? 0
-                    }, set: { newValue in
-                        let newLayer = Int(newValue)
-                        
-                        core.switchTo(layer: newLayer)
-                    })) {
-                        ForEach(0..<10) {
-                            Text($0.description).tag($0)
-                        }
-                    }.pickerStyle(SegmentedPickerStyle()
-                )
+                HStack {
+                    Text("Layer:").font(.headline)
+                    Picker("Layer",
+                        selection: Binding(get: {
+                            core.layer.convertedValue() ?? 0
+                        }, set: { newValue in
+                            core.switchTo(layer: Int(newValue))
+                        })) {
+                            ForEach(0..<10) {
+                                Text($0.description).tag($0)
+                            }
+                        }.pickerStyle(SegmentedPickerStyle()
+                    )
+                }
             }
 
             LazyVGrid(columns: columns, spacing: 16) {
