@@ -23,6 +23,7 @@ public final class CoreBrowser: NSObject {
     @ObservationIgnored private var peripherals: [UUID: CBPeripheral] = [:]
     @ObservationIgnored private var links: [UUID: WeakLink] = [:]
     @ObservationIgnored private var wantsScan = false
+    @ObservationIgnored private var previewLinkFactory: ((DiscoveredCore) -> any CoreLink)?
     @ObservationIgnored private let log = Logger(subsystem: "jpg.nevyn.shinerconf", category: "browser")
 
     private struct WeakLink { weak var link: BLECoreLink? }
@@ -32,10 +33,12 @@ public final class CoreBrowser: NSObject {
         central = CBCentralManager(delegate: self, queue: nil)
     }
 
-    /// Preview-only: canned cores, no Bluetooth.
-    public init(previewCores: [DiscoveredCore]) {
+    /// Preview/demo-only: canned cores and no Bluetooth; sessions come from
+    /// `linkFactory` (typically `{ _ in FakeCoreLink.demo() }`).
+    public init(previewCores: [DiscoveredCore], linkFactory: ((DiscoveredCore) -> any CoreLink)? = nil) {
         discovered = previewCores
         isBluetoothAvailable = true
+        previewLinkFactory = linkFactory
         super.init()
     }
 
@@ -52,6 +55,7 @@ public final class CoreBrowser: NSObject {
     /// Forgets cores that aren't connected, then rescans; advertising cores
     /// reappear within a second or two, powered-off ones stay gone.
     public func refresh() {
+        guard central != nil else { return }  // preview cores can't rescan into existence
         let live = Set(links.compactMap { $0.value.link != nil ? $0.key : nil })
         discovered.removeAll { !live.contains($0.id) }
         peripherals = peripherals.filter { live.contains($0.key) }
@@ -59,6 +63,9 @@ public final class CoreBrowser: NSObject {
     }
 
     public func makeSession(for core: DiscoveredCore) -> CoreSession {
+        if let previewLinkFactory {
+            return CoreSession(link: previewLinkFactory(core))
+        }
         guard let central, let peripheral = peripherals[core.id] else {
             preconditionFailure("makeSession for unknown core \(core.id)")
         }

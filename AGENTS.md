@@ -84,6 +84,9 @@ hand-edit the pbxproj to add files.
   (visionOS is best-effort; don't break `SUPPORTED_PLATFORMS` but no need to build it).
 * Real-device behavior (actual BLE) can't be simulated; previews + FakeCoreLink cover
   logic, the user covers hardware smoke tests.
+* **Visual verification in the simulator** (DEBUG builds): launch with `-demo`
+  (controls, connected fake), `-demo-offline` (reconnecting state), or `-demo-list`
+  (full list → detail flow against fakes), then `xcrun simctl io booted screenshot`.
 
 Team is `M4Q2TE45WT` (personal — never the FR24 account), bundle `jpg.nevyn.shinerconf`.
 
