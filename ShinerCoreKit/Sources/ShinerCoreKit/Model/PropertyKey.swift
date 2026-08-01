@@ -37,5 +37,8 @@ public enum CoreProps {
     public static let ledOrder = PropertyKey<StringConverter>("ledOrder", "f3b7c8a1-5d2e-4f19-8c6a-9e1d0b2c3a4f")
     public static let ledCount = PropertyKey<IntConverter>("ledCount", "f5c67dcb-8798-4818-901f-cff9917d1a62")
     public static let mic = PropertyKey<IntConverter>("mic", "519f61ae-bb92-425f-90fa-29aabc63520d")
+    public static let mesh = PropertyKey<IntConverter>("mesh", "808fb660-9eba-45c2-862c-be18a55195ed")
+    public static let meshShow = PropertyKey<IntConverter>("meshShow", "f4d7b6bd-aeb2-4ea1-a5fc-254e3db10200")
+    public static let carouselBeats = PropertyKey<IntConverter>("carouselBeats", "1bc3f537-b285-4def-a2f9-285dae0b2aaa")
     public static let documentation = PropertyKey<DocumentationConverter>("documentation", "76db9199-21af-4207-a23c-dc138a6cd42d")
 }

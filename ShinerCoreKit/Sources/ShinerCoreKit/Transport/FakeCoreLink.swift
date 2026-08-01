@@ -115,6 +115,9 @@ public final class FakeCoreLink: CoreLink {
             CoreProps.ledOrder.id: "GRB",
             CoreProps.ledCount.id: "144",
             CoreProps.mic.id: "1",
+            CoreProps.mesh.id: "1",
+            CoreProps.meshShow.id: "1",
+            CoreProps.carouselBeats.id: "8",
             CoreProps.documentation.id: #"{"blendModes":["add","multiply","overwrite"],"animations":["rainbow","pulse","sparkle","solid"],"ledColorOrders":["RGB","GRB","BGR"]}"#,
         ])
     }
