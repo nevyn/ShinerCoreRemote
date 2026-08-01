@@ -17,10 +17,14 @@ CBUUIDs exist only in `BLE/`.
 ## Transport — the `CoreLink` seam (`Transport/`, `BLE/`)
 
 A `CoreLink` is one device: an `AsyncStream<CoreLinkEvent>` (connected,
-disconnected, becameAvailable, valueRead, readFailed) plus `connect()`,
-`disconnect()`, awaitable acked `write`, and `readAll()`. `connect()` is a
-standing intent — it keeps trying until it succeeds or `disconnect()` is
-called, mirroring CoreBluetooth's never-timing-out `CBCentralManager.connect`.
+disconnected, incompatible, becameAvailable, valueRead, readFailed) plus
+`connect()`, `disconnect()`, awaitable acked `write`, and `read(id)` —
+exactly one response event per read request, which is what lets the session
+count outstanding reads. `connect()` is a standing intent — it keeps trying
+until it succeeds or `disconnect()` is called, mirroring CoreBluetooth's
+never-timing-out `CBCentralManager.connect`. `incompatible` (wrong device,
+forgotten peripheral) means reconnecting is pointless; the session parks in
+`.failed` instead of retrying forever.
 
 `BLECoreLink` implements it over a `CBPeripheral`. `CoreBrowser` owns the
 `CBCentralManager`: scanning (foreground only; `refresh()` prunes
@@ -42,12 +46,14 @@ structured concurrency: a view runs `session.run()` in a `.task`, and
 
 Writes are optimistic: `set()` updates `state` immediately, marks the prop
 dirty, and a per-prop trailing-edge task writes the *latest* value at most
-once per throttle interval (100 ms). While dirty, inbound reads for that
-prop are dropped (a refetch can't yank a slider mid-drag), and equal-value
-writes are skipped (stops color round-trip oscillation). `select()` is for
-layer/preset, whose device-side change fans out to other props: immediate
-write, then `readAll()` after the ack. Errors land in `lastError`, rendered
-by the UI, dismissible.
+once per throttle interval (100 ms). Dirtiness clears only once no writer
+is active AND no counted reads are outstanding — the device answers reads
+serially, so a response requested before the write is stale even when it
+arrives after the ack; dropping exactly that many responses means a refetch
+can never yank a slider back. Equal-value writes are skipped (stops color
+round-trip oscillation). `select()` is for layer/preset, whose device-side
+change fans out to other props: immediate write, then a full re-read after
+the ack. Errors land in `lastError`, rendered by the UI, dismissible.
 
 ## Views (app target)
 

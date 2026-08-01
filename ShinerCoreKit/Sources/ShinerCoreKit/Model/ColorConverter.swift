@@ -19,7 +19,12 @@ public struct ColorConverter: PropertyConverter {
 
     public static func unconvert(_ value: Color) -> String {
         let (red, green, blue, _) = value.rgba
-        return "\(Int((red * 255).rounded())) \(Int((green * 255).rounded())) \(Int((blue * 255).rounded()))"
+        // Extended-sRGB components from wide-gamut picks can exceed 0...1;
+        // the wire format can't.
+        func wire(_ component: CGFloat) -> Int {
+            Int((min(max(component, 0), 1) * 255).rounded())
+        }
+        return "\(wire(red)) \(wire(green)) \(wire(blue))"
     }
 }
 

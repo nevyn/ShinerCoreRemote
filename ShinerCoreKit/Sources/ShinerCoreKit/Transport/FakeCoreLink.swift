@@ -18,7 +18,12 @@ public final class FakeCoreLink: CoreLink {
     public private(set) var reachable = true
     /// When set, writes fail with this error.
     public var writeError: CoreLinkError?
+    /// When true, `read` responses queue up until `deliverPendingReads()`,
+    /// capturing the value at request time — models the device answering
+    /// serially, so a response can be stale by the time it arrives.
+    public var deferReads = false
     private var pendingConnect = false
+    private var deferredReads: [(id: PropertyID, raw: String?)] = []
 
     public init(values: [PropertyID: String] = [:]) {
         self.values = values
@@ -59,12 +64,30 @@ public final class FakeCoreLink: CoreLink {
 
     public func write(_ raw: String, to id: PropertyID) async throws {
         if let writeError { throw writeError }
+        guard reachable else { throw CoreLinkError("Disconnected") }
         written.append((id, raw))
         values[id] = raw
     }
 
-    public func readAll() {
-        for (id, raw) in values { emit.yield(.valueRead(id, raw)) }
+    public func read(_ id: PropertyID) {
+        if deferReads {
+            deferredReads.append((id, values[id]))
+        } else {
+            deliver(id: id, raw: values[id])
+        }
+    }
+
+    public func deliverPendingReads() {
+        for (id, raw) in deferredReads { deliver(id: id, raw: raw) }
+        deferredReads = []
+    }
+
+    private func deliver(id: PropertyID, raw: String?) {
+        if let raw {
+            emit.yield(.valueRead(id, raw))
+        } else {
+            emit.yield(.readFailed(id, CoreLinkError("No such property")))
+        }
     }
 
     /// Test/preview hook: push an arbitrary event, e.g. `.disconnected` to

@@ -5,18 +5,22 @@ struct CoreControlsView: View {
     let session: CoreSession
 
     var body: some View {
+        // .disabled sits on the tab contents, not the TabView, so the user
+        // can still switch tabs while reconnecting.
         TabView {
             AnimationSettingsView(session: session)
+                .disabled(session.connection != .connected)
                 .tabItem { Label("Animation", systemImage: "sparkles") }
             CoreSettingsView(session: session)
+                .disabled(session.connection != .connected)
                 .tabItem { Label("Core", systemImage: "gearshape") }
         }
-        .disabled(session.connection != .connected)
         .safeAreaInset(edge: .top, spacing: 0) { banner }
     }
 
     @ViewBuilder private var banner: some View {
-        if session.connection != .connected {
+        switch session.connection {
+        case .connecting, .reconnecting:
             HStack {
                 ProgressView()
                 Text(session.connection == .connecting ? "Connecting…" : "Reconnecting…")
@@ -25,16 +29,24 @@ struct CoreControlsView: View {
             .frame(maxWidth: .infinity)
             .padding(8)
             .background(.orange.opacity(0.25))
-        } else if let error = session.lastError {
-            HStack {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.subheadline)
-                Spacer()
-                Button("Dismiss") { session.lastError = nil }
-                    .font(.subheadline)
+        case .failed(let reason):
+            Label(reason, systemImage: "xmark.octagon.fill")
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(8)
+                .background(.red.opacity(0.25))
+        case .connected:
+            if let error = session.lastError {
+                HStack {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline)
+                    Spacer()
+                    Button("Dismiss") { session.lastError = nil }
+                        .font(.subheadline)
+                }
+                .padding(8)
+                .background(.red.opacity(0.25))
             }
-            .padding(8)
-            .background(.red.opacity(0.25))
         }
     }
 }

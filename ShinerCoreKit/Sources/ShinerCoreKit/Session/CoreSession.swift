@@ -10,6 +10,8 @@ public final class CoreSession {
         case connecting
         case connected
         case reconnecting
+        /// Permanent: reconnecting is pointless (wrong device, forgotten peripheral).
+        case failed(String)
     }
 
     public private(set) var state = CoreState()
@@ -19,10 +21,16 @@ public final class CoreSession {
 
     @ObservationIgnored private let link: any CoreLink
     @ObservationIgnored private let throttle: Duration
-    /// Props with an unsent or in-flight write; inbound reads for them are
-    /// stale by definition and dropped (stops refetches yanking sliders mid-drag).
+    /// Props whose optimistic local value must not be clobbered: an unsent
+    /// or in-flight write, or reads requested before that write completed
+    /// whose responses are stale by definition. Cleared per-prop once no
+    /// writer is active and no counted reads are outstanding.
     @ObservationIgnored private var dirty: Set<PropertyID> = []
+    /// Outstanding read requests per prop: exactly one valueRead/readFailed
+    /// event comes back per request, so this counts in-flight staleness.
+    @ObservationIgnored private var pendingReads: [PropertyID: Int] = [:]
     @ObservationIgnored private var writeTasks: [PropertyID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var hasRun = false
 
     public init(link: any CoreLink, throttle: Duration = .milliseconds(100)) {
         self.link = link
@@ -34,6 +42,8 @@ public final class CoreSession {
     /// a lost link reconnects automatically: `connect()` is a standing
     /// intent that completes whenever the device reappears.
     public func run() async {
+        precondition(!hasRun, "CoreSession.run() is one-shot; make a new session")
+        hasRun = true
         defer { link.disconnect() }
         link.connect()
         for await event in link.events {
@@ -46,16 +56,23 @@ public final class CoreSession {
         case .connected:
             connection = .connected
             lastError = nil
-            link.readAll()
+            refresh()
         case .disconnected(let reason):
+            if case .failed = connection { return }  // never reconnect an incompatible device
             connection = .reconnecting
             if let reason { lastError = reason.description }
             dirty = []
+            pendingReads = [:]
+            state.available = []  // firmware may differ after reconnect; rediscovery repopulates
             link.connect()
+        case .incompatible(let reason):
+            connection = .failed(reason.description)
         case .becameAvailable(let id):
             state.available.insert(id)
         case .valueRead(let id, let raw):
-            guard !dirty.contains(id) else { return }
+            let wasDirty = dirty.contains(id)  // before finishRead may settle it
+            finishRead(of: id)
+            guard !wasDirty else { return }  // stale; the acked optimistic value stands
             state.raw[id] = raw
             if id == CoreProps.documentation.id {
                 state.documentation = DocumentationConverter.convert(raw)
@@ -64,7 +81,31 @@ public final class CoreSession {
                 }
             }
         case .readFailed(let id, let error):
+            finishRead(of: id)
             lastError = "Couldn't read \(id): \(error.description)"
+        }
+    }
+
+    /// Re-reads every property. Call on return to foreground: the link may
+    /// have survived, but the device state may not have.
+    public func refresh() {
+        guard connection == .connected else { return }
+        for id in state.available { issueRead(id) }
+    }
+
+    private func issueRead(_ id: PropertyID) {
+        pendingReads[id, default: 0] += 1
+        link.read(id)
+    }
+
+    private func finishRead(of id: PropertyID) {
+        pendingReads[id] = max(0, (pendingReads[id] ?? 0) - 1)
+        cleanIfSettled(id)
+    }
+
+    private func cleanIfSettled(_ id: PropertyID) {
+        if writeTasks[id] == nil, pendingReads[id, default: 0] == 0 {
+            dirty.remove(id)
         }
     }
 
@@ -96,14 +137,7 @@ public final class CoreSession {
             if state.raw[id] == raw { break }  // caught up with the user
         }
         writeTasks[id] = nil
-        dirty.remove(id)
-    }
-
-    /// Re-reads every property. Call on return to foreground: the link may
-    /// have survived, but the device state may not have.
-    public func refresh() {
-        guard connection == .connected else { return }
-        link.readAll()
+        cleanIfSettled(id)
     }
 
     /// For props whose device-side change fans out to other props
@@ -111,13 +145,15 @@ public final class CoreSession {
     public func select<C>(_ key: PropertyKey<C>, _ value: C.ValueType) {
         let raw = C.unconvert(value)
         state.raw[key.id] = raw
+        dirty.insert(key.id)  // pre-write reads in flight must not flick the picker back
         Task {
             do {
                 try await link.write(raw, to: key.id)
-                link.readAll()
+                refresh()
             } catch {
                 lastError = "Couldn't set \(key.name): \(error.localizedDescription)"
             }
+            cleanIfSettled(key.id)
         }
     }
 }

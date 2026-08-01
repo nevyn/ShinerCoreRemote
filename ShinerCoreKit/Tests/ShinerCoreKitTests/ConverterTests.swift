@@ -30,6 +30,17 @@ import SwiftUI
         }
     }
 
+    @Test func colorWideGamutClampsToWireRange() throws {
+        // Display P3 red is outside sRGB; components must clamp to 0...255.
+        let wire = ColorConverter.unconvert(Color(.displayP3, red: 1, green: 0.2, blue: 0))
+        let components = wire.components(separatedBy: " ").map { Int($0) }
+        #expect(components.count == 3)
+        for component in components {
+            let c = try #require(component)
+            #expect((0...255).contains(c))
+        }
+    }
+
     @Test func documentationDecoding() {
         let doc = DocumentationConverter.convert(
             #"{"blendModes":["add"],"animations":["rainbow","pulse"],"ledColorOrders":["RGB"]}"#)

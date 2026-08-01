@@ -66,9 +66,20 @@ public final class CoreBrowser: NSObject {
         if let previewLinkFactory {
             return CoreSession(link: previewLinkFactory(core))
         }
-        guard let central, let peripheral = peripherals[core.id] else {
-            preconditionFailure("makeSession for unknown core \(core.id)")
+        guard let central else {
+            preconditionFailure("makeSession on a preview browser without a link factory")
         }
+        links = links.filter { $0.value.link != nil }
+        if peripherals[core.id] == nil {
+            // Pruned or never seen this launch; the system usually still knows it.
+            peripherals[core.id] = central.retrievePeripherals(withIdentifiers: [core.id]).first
+        }
+        guard let peripheral = peripherals[core.id] else {
+            return CoreSession(link: FailedLink(reason: CoreLinkError("\(core.name) is no longer known; go back and rescan")))
+        }
+        // A dying session's link may still exist for this peripheral (e.g.
+        // re-entering the same core); hand over cleanly before rerouting.
+        links[core.id]?.link?.superseded()
         let link = BLECoreLink(central: central, peripheral: peripheral)
         links[core.id] = WeakLink(link: link)
         return CoreSession(link: link)

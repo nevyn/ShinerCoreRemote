@@ -108,6 +108,36 @@ struct SessionHarness {
         #expect(h.fake.disconnectCount == 1, "back = disconnect")
     }
 
+    @Test func staleQueuedReadCannotRevertAWrite() async {
+        let h = await SessionHarness()
+        h.fake.deferReads = true
+        h.session.refresh()  // reads queue device-side, capturing pre-write values
+        h.session.set(CoreProps.speed, to: 9.9)
+        await settle { h.fake.written.contains { $0.id == CoreProps.speed.id } }
+        h.fake.deliverPendingReads()  // stale responses arrive after the ack
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(h.session.state[CoreProps.speed] == 9.9, "stale read must not revert the written value")
+
+        h.fake.inject(.valueRead(CoreProps.speed.id, "1.5"))  // later, genuinely fresh read
+        await settle { h.session.state[CoreProps.speed] == 1.5 }
+        #expect(h.session.state[CoreProps.speed] == 1.5, "staleness tracking settles; new reads apply")
+        await h.stop()
+    }
+
+    @Test func incompatibleDeviceStopsReconnecting() async {
+        let fake = FakeCoreLink()  // no props: bare link we drive by hand
+        let session = CoreSession(link: fake, throttle: .milliseconds(10))
+        let runner = Task { await session.run() }
+        await settle { fake.connectCount == 1 }
+        fake.inject(.incompatible(CoreLinkError("Device has no ShinerCore service")))
+        fake.inject(.disconnected(reason: nil))  // the cancel that follows
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(session.connection == .failed("Device has no ShinerCore service"))
+        #expect(fake.connectCount == 1, "no reconnect attempts against an incompatible device")
+        runner.cancel()
+        await settle { fake.disconnectCount > 0 }
+    }
+
     @Test func writeFailureSurfaces() async {
         let h = await SessionHarness()
         h.fake.writeError = CoreLinkError("device said no")

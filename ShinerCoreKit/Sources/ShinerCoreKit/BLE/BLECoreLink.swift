@@ -30,8 +30,18 @@ final class BLECoreLink: NSObject, CoreLink {
     }
 
     func disconnect() {
+        // A newer link for this peripheral has taken over (it repointed the
+        // delegate); tearing down the shared connection would sabotage it.
+        guard peripheral.delegate === self else { return }
         log.info("Disconnecting from \(self.peripheral.name ?? "?", privacy: .public)")
         central.cancelPeripheralConnection(peripheral)
+    }
+
+    /// Called by CoreBrowser when a newer link replaces this one: fail
+    /// in-flight writes and tell the (dying) session it's over, without
+    /// touching the shared connection the successor is about to use.
+    func superseded() {
+        linkDropped(reason: nil)
     }
 
     func write(_ raw: String, to id: PropertyID) async throws {
@@ -44,10 +54,12 @@ final class BLECoreLink: NSObject, CoreLink {
         }
     }
 
-    func readAll() {
-        for characteristic in characteristics.values {
-            peripheral.readValue(for: characteristic)
+    func read(_ id: PropertyID) {
+        guard let characteristic = characteristics[id] else {
+            emit.yield(.readFailed(id, CoreLinkError("Property \(id) is not available on this core")))
+            return
         }
+        peripheral.readValue(for: characteristic)
     }
 
     // Forwarded by CoreBrowser from the central's delegate.
@@ -79,7 +91,8 @@ final class BLECoreLink: NSObject, CoreLink {
 extension BLECoreLink: @preconcurrency CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: (any Error)?) {
         guard let service = peripheral.services?.first(where: { $0.uuid == shinerServiceUUID }) else {
-            emit.yield(.disconnected(reason: CoreLinkError("Device has no ShinerCore service")))
+            // Not a transient failure: reconnecting to this device is pointless.
+            emit.yield(.incompatible(CoreLinkError("Device has no ShinerCore service")))
             central.cancelPeripheralConnection(peripheral)
             return
         }
@@ -87,6 +100,12 @@ extension BLECoreLink: @preconcurrency CBPeripheralDelegate {
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: (any Error)?) {
+        if let error {
+            // Transient GATT failure: drop and let the session retry.
+            linkDropped(reason: CoreLinkError(wrapping: error))
+            central.cancelPeripheralConnection(peripheral)
+            return
+        }
         for characteristic in service.characteristics ?? [] {
             let id = PropertyID(characteristic.uuid.uuidString)
             characteristics[id] = characteristic

@@ -28,9 +28,16 @@ struct CoreListView: View {
                 List(browser.discovered, selection: $selectedCore) { core in
                     NavigationLink(core.name, value: core)
                 }
+                // Pruning is explicit, never automatic: a core connected to
+                // someone else's phone stops advertising and couldn't rescan
+                // back into the list.
+                .refreshable { browser.refresh() }
             }
             .navigationTitle("Nearby cores ✨")
             .background(Color.gray.opacity(0.1))
+            .toolbar {
+                Button("Rescan", systemImage: "arrow.clockwise") { browser.refresh() }
+            }
         } detail: {
             if let core = selectedCore {
                 CoreDetailView(browser: browser, core: core)
@@ -42,7 +49,6 @@ struct CoreListView: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
-                browser.refresh()  // prune powered-off cores, rescan
                 browser.startScanning()
             case .background:
                 browser.stopScanning()
