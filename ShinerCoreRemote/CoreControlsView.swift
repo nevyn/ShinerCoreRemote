@@ -14,6 +14,9 @@ struct CoreControlsView: View {
             CoreSettingsView(session: session)
                 .disabled(session.connection != .connected)
                 .tabItem { Label("Core", systemImage: "gearshape") }
+            MeshSettingsView(session: session)
+                .disabled(session.connection != .connected)
+                .tabItem { Label("Mesh", systemImage: "antenna.radiowaves.left.and.right") }
         }
         .safeAreaInset(edge: .top, spacing: 0) { banner }
     }
@@ -116,6 +119,27 @@ struct CoreSettingsView: View {
                                 options: session.state.documentation?.ledColorOrders ?? [])
                         ToggleBox(title: "Microphone (beat detection)", session: session, key: CoreProps.mic)
                     }
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+/// ESP-NOW mesh sync: the radio itself, and the shared preset carousel.
+struct MeshSettingsView: View {
+    let session: CoreSession
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Grid(horizontalSpacing: 16, verticalSpacing: 16) {
+                    GridRow {
+                        ToggleBox(title: "Mesh radio", session: session, key: CoreProps.mesh)
+                        ToggleBox(title: "Play shared show", session: session, key: CoreProps.meshShow)
+                    }
+                    // carouselBeats is deliberately absent: the firmware doesn't
+                    // sync it between cores yet, so exposing it invites desync.
                 }
             }
             .padding()
