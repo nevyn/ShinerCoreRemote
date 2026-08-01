@@ -18,8 +18,12 @@ public enum CoreLinkEvent: Sendable, Equatable {
     case incompatible(CoreLinkError)
     /// The firmware exposes this property.
     case becameAvailable(PropertyID)
+    /// Response to a `read(_:)` request — exactly one per request.
     case valueRead(PropertyID, String)
     case readFailed(PropertyID, CoreLinkError)
+    /// Unsolicited device-side change (a notification): another central
+    /// wrote it, the layer/preset cursor fanned out, or our own write echoed.
+    case valueChanged(PropertyID, String)
 }
 
 /// The seam between the session and a device. `BLECoreLink` is the real one;

@@ -14,6 +14,9 @@ final class BLECoreLink: NSObject, CoreLink {
     private let peripheral: CBPeripheral
     private var characteristics: [PropertyID: CBCharacteristic] = [:]
     private var writeWaiters: [PropertyID: [CheckedContinuation<Void, any Error>]] = [:]
+    /// didUpdateValueFor serves both read responses and notifications; the
+    /// only way to tell them apart is counting what we asked for.
+    private var outstandingReads: [PropertyID: Int] = [:]
     private let log = Logger(subsystem: "jpg.nevyn.shinerconf", category: "ble")
 
     init(central: CBCentralManager, peripheral: CBPeripheral) {
@@ -59,6 +62,7 @@ final class BLECoreLink: NSObject, CoreLink {
             emit.yield(.readFailed(id, CoreLinkError("Property \(id) is not available on this core")))
             return
         }
+        outstandingReads[id, default: 0] += 1
         peripheral.readValue(for: characteristic)
     }
 
@@ -79,6 +83,7 @@ final class BLECoreLink: NSObject, CoreLink {
 
     private func linkDropped(reason: CoreLinkError?) {
         characteristics = [:]  // stale after disconnect; rediscovered on reconnect
+        outstandingReads = [:]
         let waiters = writeWaiters.values.flatMap(\.self)
         writeWaiters = [:]
         for waiter in waiters {
@@ -109,18 +114,37 @@ extension BLECoreLink: @preconcurrency CBPeripheralDelegate {
         for characteristic in service.characteristics ?? [] {
             let id = PropertyID(characteristic.uuid.uuidString)
             characteristics[id] = characteristic
+            if characteristic.properties.contains(.notify) {
+                peripheral.setNotifyValue(true, for: characteristic)
+            }
             emit.yield(.becameAvailable(id))
         }
         emit.yield(.connected)
     }
 
+    func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: (any Error)?) {
+        // Failure just means no live updates for this prop; reads still work.
+        if let error {
+            log.error("Couldn't subscribe to \(characteristic.uuid): \(error)")
+        }
+    }
+
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: (any Error)?) {
         let id = PropertyID(characteristic.uuid.uuidString)
+        let wasRequested = (outstandingReads[id] ?? 0) > 0
         if let error {
+            // Only read requests produce errors; notifications can't.
+            if wasRequested { outstandingReads[id]! -= 1 }
             emit.yield(.readFailed(id, CoreLinkError(wrapping: error)))
         } else if let data = characteristic.value, let raw = String(data: data, encoding: .utf8) {
-            emit.yield(.valueRead(id, raw))
+            if wasRequested {
+                outstandingReads[id]! -= 1
+                emit.yield(.valueRead(id, raw))
+            } else {
+                emit.yield(.valueChanged(id, raw))
+            }
         } else {
+            if wasRequested { outstandingReads[id]! -= 1 }
             emit.yield(.readFailed(id, CoreLinkError("Value is not UTF-8")))
         }
     }
