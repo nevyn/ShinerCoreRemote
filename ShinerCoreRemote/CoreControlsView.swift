@@ -138,11 +138,8 @@ struct MeshSettingsView: View {
                         ToggleBox(title: "Mesh radio", session: session, key: CoreProps.mesh)
                         ToggleBox(title: "Play shared show", session: session, key: CoreProps.meshShow)
                     }
-                    GridRow {
-                        IntSliderBox(title: "Beats per preset", session: session,
-                                     key: CoreProps.carouselBeats, range: 1 ... 64)
-                            .gridCellColumns(2)
-                    }
+                    // carouselBeats is deliberately absent: the firmware doesn't
+                    // sync it between cores yet, so exposing it invites desync.
                 }
             }
             .padding()
