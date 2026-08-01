@@ -73,16 +73,26 @@ public final class CoreSession {
             let wasDirty = dirty.contains(id)  // before finishRead may settle it
             finishRead(of: id)
             guard !wasDirty else { return }  // stale; the acked optimistic value stands
-            state.raw[id] = raw
-            if id == CoreProps.documentation.id {
-                state.documentation = DocumentationConverter.convert(raw)
-                if state.documentation == nil {
-                    lastError = "Core sent unparseable documentation"
-                }
-            }
+            applyDeviceValue(id, raw)
+        case .valueChanged(let id, let raw):
+            // A notification: another central, cursor fanout, or our own
+            // write echoing back. No read bookkeeping — nothing was requested.
+            guard !dirty.contains(id) else { return }
+            applyDeviceValue(id, raw)
         case .readFailed(let id, let error):
             finishRead(of: id)
             lastError = "Couldn't read \(id): \(error.description)"
+        }
+    }
+
+    private func applyDeviceValue(_ id: PropertyID, _ raw: String) {
+        guard state.raw[id] != raw else { return }
+        state.raw[id] = raw
+        if id == CoreProps.documentation.id {
+            state.documentation = DocumentationConverter.convert(raw)
+            if state.documentation == nil {
+                lastError = "Core sent unparseable documentation"
+            }
         }
     }
 

@@ -17,14 +17,22 @@ CBUUIDs exist only in `BLE/`.
 ## Transport — the `CoreLink` seam (`Transport/`, `BLE/`)
 
 A `CoreLink` is one device: an `AsyncStream<CoreLinkEvent>` (connected,
-disconnected, incompatible, becameAvailable, valueRead, readFailed) plus
-`connect()`, `disconnect()`, awaitable acked `write`, and `read(id)` —
-exactly one response event per read request, which is what lets the session
-count outstanding reads. `connect()` is a standing intent — it keeps trying
-until it succeeds or `disconnect()` is called, mirroring CoreBluetooth's
-never-timing-out `CBCentralManager.connect`. `incompatible` (wrong device,
-forgotten peripheral) means reconnecting is pointless; the session parks in
-`.failed` instead of retrying forever.
+disconnected, incompatible, becameAvailable, valueRead, readFailed,
+valueChanged) plus `connect()`, `disconnect()`, awaitable acked `write`,
+and `read(id)` — exactly one response event per read request, which is what
+lets the session count outstanding reads. `valueChanged` is an unsolicited
+notification: another central wrote, the firmware's layer/preset cursor
+fanned out, or our own write echoed back. CoreBluetooth delivers reads and
+notifications through the same callback; `BLECoreLink` tells them apart by
+that outstanding-read count (a notification arriving mid-read can swap
+roles with the response — harmless, both carry fresh device values).
+Firmware without notify support (pre-BLENotify) just never emits
+`valueChanged`; everything else works identically. `connect()` is a
+standing intent — it keeps trying until it succeeds or `disconnect()` is
+called, mirroring CoreBluetooth's never-timing-out
+`CBCentralManager.connect`. `incompatible` (wrong device, forgotten
+peripheral) means reconnecting is pointless; the session parks in `.failed`
+instead of retrying forever.
 
 `BLECoreLink` implements it over a `CBPeripheral`. `CoreBrowser` owns the
 `CBCentralManager`: scanning (foreground only; `refresh()` prunes
@@ -65,8 +73,12 @@ in the layout even when unavailable — dimmed via `.availability(of:in:)` —
 because structural stability is what keeps scrolling from jumping while
 characteristic reads trickle in.
 
-## Punted
+## Notifications
 
-Firmware notifications (`setNotifyValue`) — wanted for layer/preset-driven
-changes and second-phone edits; needs firmware work. Until then: refetch
-after `select()` and on foregrounding.
+The firmware notifies on every property change (`BLENotify`; its
+`publish()` is the single change path), and the app subscribes to every
+characteristic that offers it. Second-phone edits and cursor fanout appear
+live; a notification for a dirty prop is dropped like any other inbound
+value. The refetch after `select()` and on foregrounding stays — it costs
+little, covers dropped notifications, and keeps pre-notify firmware fully
+supported.

@@ -138,6 +138,30 @@ struct SessionHarness {
         await settle { fake.disconnectCount > 0 }
     }
 
+    @Test func notificationAppliesWhenClean() async {
+        let h = await SessionHarness()
+        h.fake.inject(.valueChanged(CoreProps.brightness.id, "77"))
+        await settle { h.session.state[CoreProps.brightness] == 77 }
+        #expect(h.session.state[CoreProps.brightness] == 77, "device-side change (other phone, cursor fanout) shows up live")
+        await h.stop()
+    }
+
+    @Test func notificationDroppedWhileDirtyAndCountingUnaffected() async {
+        let h = await SessionHarness()
+        h.session.set(CoreProps.brightness, to: 42)
+        h.fake.inject(.valueChanged(CoreProps.brightness.id, "180"))  // our own write echoing back mid-drag
+        await settle { h.fake.written.contains { $0.id == CoreProps.brightness.id } }
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(h.session.state[CoreProps.brightness] == 42, "echo must not yank the slider")
+
+        // Notifications carry no read bookkeeping: a later refresh still settles.
+        h.fake.values[CoreProps.brightness.id] = "99"
+        h.session.refresh()
+        await settle { h.session.state[CoreProps.brightness] == 99 }
+        #expect(h.session.state[CoreProps.brightness] == 99)
+        await h.stop()
+    }
+
     @Test func writeFailureSurfaces() async {
         let h = await SessionHarness()
         h.fake.writeError = CoreLinkError("device said no")
