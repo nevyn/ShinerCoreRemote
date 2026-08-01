@@ -14,7 +14,11 @@ struct MyApp: App {
                 DemoRoot(offline: true)
             } else if ProcessInfo.processInfo.arguments.contains("-demo-list") {
                 CoreListView(browser: CoreBrowser(
-                    previewCores: [DiscoveredCore(id: UUID(), name: "Demo core")],
+                    previewCores: [
+                        DiscoveredCore(id: UUID(), name: "Vindarnas hus"),
+                        DiscoveredCore(id: UUID(), name: "Nevyn's jacket"),
+                        DiscoveredCore(id: UUID(), name: "Demo core"),
+                    ],
                     linkFactory: { _ in FakeCoreLink.demo() }))
             } else {
                 CoreListView()
