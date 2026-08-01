@@ -77,8 +77,10 @@ characteristic reads trickle in.
 
 The firmware notifies on every property change (`BLENotify`; its
 `publish()` is the single change path), and the app subscribes to every
-characteristic that offers it. Second-phone edits and cursor fanout appear
-live; a notification for a dirty prop is dropped like any other inbound
-value. The refetch after `select()` and on foregrounding stays — it costs
-little, covers dropped notifications, and keeps pre-notify firmware fully
-supported.
+characteristic that offers it. Device-side changes appear live — today
+that's the core's button switching presets (verified on hardware); mesh
+sync will ride the same path. A second simultaneous phone won't:
+ArduinoBLE accepts one central at a time. A notification for a dirty prop
+is dropped like any other inbound value. The refetch after `select()` and
+on foregrounding stays — it costs little, covers dropped notifications,
+and keeps pre-notify firmware fully supported.
