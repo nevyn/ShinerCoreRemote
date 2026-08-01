@@ -69,8 +69,13 @@ struct CoreControlsView: View {
                 if core.animation.available {
                     DropDownPropBox(title: "Animation", core: core, prop: core.animation, options: core.documentation.convertedValue()?.animations ?? [])
                 }
+                if core.beatSync.available {
+                    SwitchPropBox(title: "Beat sync", core: core, prop: core.beatSync)
+                }
                 if core.speed.available {
-                    DoubleLogSliderPropBox(title: "Speed", core: core, prop: core.speed, range: 0.01 ... 60.0)
+                    let synced = (core.beatSync.convertedValue() ?? 0) > 0
+                    DoubleLogSliderPropBox(title: synced ? "Speed (beats per cycle)" : "Speed (seconds per cycle)",
+                                           core: core, prop: core.speed, range: 0.01 ... 60.0)
                 }
                 if core.tau.available {
                     DoubleLogSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.01 ... 80.0)

@@ -46,6 +46,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
     let layer = CoreProperty<IntConverter>(name: "layer", uuid: CBUUID(string: "0a7eadd8-e4b8-4384-8308-e67a32262cc4"))
     let preset = CoreProperty<IntConverter>(name: "preset", uuid: CBUUID(string: "8b989f5e-3d22-4377-80c9-c54eeb459518"))
     let animation = CoreProperty<StringConverter>(name: "animation", uuid: CBUUID(string: "bee29c30-aa11-45b2-b5a2-8ff8d0bab262"))
+    let beatSync = CoreProperty<IntConverter>(name: "beatSync", uuid: CBUUID(string: "6f97efc2-096e-4704-9feb-f9c2f41577ee"))
     let blendMode = CoreProperty<StringConverter>(name: "blendMode", uuid: CBUUID(string: "03686c5c-6e6f-44f0-943f-db6388d9fdd4"))
     let ledOrder = CoreProperty<StringConverter>(name: "ledOrder", uuid: CBUUID(string: "f3b7c8a1-5d2e-4f19-8c6a-9e1d0b2c3a4f"))
     let ledCount = CoreProperty<IntConverter>(name: "ledCount", uuid: CBUUID(string: "f5c67dcb-8798-4818-901f-cff9917d1a62"))
@@ -58,7 +59,7 @@ class ShinerCore : NSObject, Identifiable, CBPeripheralDelegate, ObservableObjec
         self.device = device
         super.init()
         device.delegate = self
-        for prop in [color, color2, speed, mode, brightness, tau, phi, name, layer, preset, animation, blendMode, ledOrder, ledCount, documentation] {
+        for prop in [color, color2, speed, mode, brightness, tau, phi, name, layer, preset, animation, beatSync, blendMode, ledOrder, ledCount, documentation] {
             properties[prop.uuid.uuidString] = prop
         }
     }
