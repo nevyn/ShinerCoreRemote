@@ -114,7 +114,7 @@ struct CoreSettingsView: View {
                     GridRow {
                         MenuBox(title: "LED order", session: session, key: CoreProps.ledOrder,
                                 options: session.state.documentation?.ledColorOrders ?? [])
-                            .gridCellColumns(2)
+                        ToggleBox(title: "Microphone (beat detection)", session: session, key: CoreProps.mic)
                     }
                 }
             }
