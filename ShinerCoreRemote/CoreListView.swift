@@ -1,69 +1,61 @@
 import SwiftUI
-import CoreBluetooth
+import ShinerCoreKit
 
-struct CoreListView : View {
-    @StateObject private var coreManager = CoreManager()
-    @State private var cores: [ShinerCore] = []
-    @State private var connectedCore: ShinerCore?
-    @State private var selectedCore: ShinerCore?
-    
+struct CoreListView: View {
+    @State private var browser: CoreBrowser
+    @State private var selectedCore: DiscoveredCore?
+    @Environment(\.scenePhase) private var scenePhase
+
+    @MainActor init(browser: CoreBrowser = CoreBrowser()) {
+        _browser = State(initialValue: browser)
+    }
+
     var body: some View {
         NavigationSplitView {
             VStack {
                 Label("To configure a ShinerCore's light animations, connect it to a power source (such as a power bank), and hold it near the phone. It will appear in the list below.", systemImage: "info.circle.fill")
-                    .italic(true)
+                    .italic()
                     .padding()
                     .background(.blue.opacity(0.2))
                     .cornerRadius(16)
 
-                List(cores, selection: $selectedCore) { core in
-                    NavigationLink(core.localName, value: core)
+                if !browser.isBluetoothAvailable {
+                    Label("Bluetooth is off or unavailable.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .padding(.top)
+                }
+
+                List(browser.discovered, selection: $selectedCore) { core in
+                    NavigationLink(core.name, value: core)
                 }
             }
             .navigationTitle("Nearby cores ✨")
             .background(Color.gray.opacity(0.1))
         } detail: {
-            if let core = selectedCore
-            {
-                CoreControlsView(core: core)
-            }
-            else
-            {
+            if let core = selectedCore {
+                CoreDetailView(browser: browser, core: core)
+            } else {
                 Text("Select a core to continue")
             }
         }
-        .onAppear {
-            coreManager.foundCore = { core in
-                cores.append(core)
-            }
-            
-            coreManager.lostCore = { core in
-                cores.removeAll { $0 == core }
-            }
-            coreManager.disconnectedCore = { core in
-                if core == connectedCore
-                {
-                    connectedCore = nil
-                }
-            }
-            coreManager.connectedCore = { core in 
-                connectedCore = core
+        .onAppear { browser.startScanning() }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                browser.refresh()  // prune powered-off cores, rescan
+                browser.startScanning()
+            case .background:
+                browser.stopScanning()
+            default:
+                break
             }
         }
-        .onChange(of: selectedCore) { newValue in 
-            if let core = connectedCore
-            {
-                coreManager.disconnect(from: core)
-            }
-            if let core = selectedCore
-            {
-                coreManager.connect(to: core)
-            }
-        }
-    }
-    
-    private func connect(to core: ShinerCore) {
-        coreManager.centralManager.connect(core.device, options: nil)
     }
 }
 
+#Preview {
+    CoreListView(browser: CoreBrowser(previewCores: [
+        DiscoveredCore(id: UUID(), name: "Vindarnas hus"),
+        DiscoveredCore(id: UUID(), name: "Nevyn's jacket"),
+    ]))
+}

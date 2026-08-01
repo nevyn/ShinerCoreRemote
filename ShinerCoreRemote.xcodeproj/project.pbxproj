@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		05B00B012E40000000000003 /* ShinerCoreKit in Frameworks */ = {isa = PBXBuildFile; productRef = 05B00B012E40000000000002 /* ShinerCoreKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		056671CF2D8C88DB008978F9 /* ShinerCoreRemote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ShinerCoreRemote.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				05B00B012E40000000000003 /* ShinerCoreKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 			);
 			name = ShinerCoreRemote;
 			packageProductDependencies = (
+				05B00B012E40000000000002 /* ShinerCoreKit */,
 			);
 			productName = ShinerCoreRemote;
 			productReference = 056671CF2D8C88DB008978F9 /* ShinerCoreRemote.app */;
@@ -107,6 +113,9 @@
 			);
 			mainGroup = 056671C62D8C88DB008978F9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				05B00B012E40000000000001 /* XCLocalSwiftPackageReference "ShinerCoreKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 056671D02D8C88DB008978F9 /* Products */;
 			projectDirPath = "";
@@ -289,7 +298,7 @@
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 2.0;
 			};
@@ -332,7 +341,7 @@
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 2.0;
 			};
@@ -360,6 +369,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		05B00B012E40000000000001 /* XCLocalSwiftPackageReference "ShinerCoreKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ShinerCoreKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		05B00B012E40000000000002 /* ShinerCoreKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ShinerCoreKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 056671C72D8C88DB008978F9 /* Project object */;
 }

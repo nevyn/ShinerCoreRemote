@@ -14,7 +14,8 @@ public final class CoreSession {
 
     public private(set) var state = CoreState()
     public private(set) var connection: ConnectionState = .connecting
-    public private(set) var lastError: String?
+    /// Settable so the UI can dismiss it.
+    public var lastError: String?
 
     @ObservationIgnored private let link: any CoreLink
     @ObservationIgnored private let throttle: Duration
@@ -96,6 +97,13 @@ public final class CoreSession {
         }
         writeTasks[id] = nil
         dirty.remove(id)
+    }
+
+    /// Re-reads every property. Call on return to foreground: the link may
+    /// have survived, but the device state may not have.
+    public func refresh() {
+        guard connection == .connected else { return }
+        link.readAll()
     }
 
     /// For props whose device-side change fans out to other props

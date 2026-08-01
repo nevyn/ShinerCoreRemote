@@ -1,378 +1,158 @@
 import SwiftUI
-import CoreBluetooth
+import ShinerCoreKit
 
 struct CoreControlsView: View {
-    @ObservedObject var core: ShinerCore
-    
-    let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible())
-    ]
-    var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 16) {
-                SwitchPropBox(title: "Lights on", core: core, prop: core.mode)
-                if core.brightness.available {
-                    IntSliderPropBox(title: "Brightness", core: core, prop: core.brightness, range: 0.0 ... 255.0)
-                }
-                StringPropBox(title: "Owner's name", core: core, prop: core.name)
-                if core.ledOrder.available {
-                    DropDownPropBox(title: "LED Order", core: core, prop: core.ledOrder, options: core.documentation.convertedValue()?.ledColorOrders ?? [])
-                }
-                if core.ledCount.available {
-                    IntSliderPropBox(title: "Number of LEDs", core: core, prop: core.ledCount, range: 0.0 ... 800.0)
-                }
-            }
-            if core.preset.available {
-                HStack {
-                    Text("Preset:").font(.headline)
-                    Picker("Preset",
-                        selection: Binding(get: {
-                            core.preset.convertedValue() ?? 0
-                        }, set: { newValue in
-                            core.switchTo(preset: Int(newValue))
-                        })) {
-                            ForEach(0..<5) {
-                                Text($0.description).tag($0)
-                            }
-                        }.pickerStyle(SegmentedPickerStyle()
-                    )
-                }
-            }
-            if core.layer.available {
-                HStack {
-                    Text("Layer:").font(.headline)
-                    Picker("Layer",
-                        selection: Binding(get: {
-                            core.layer.convertedValue() ?? 0
-                        }, set: { newValue in
-                            core.switchTo(layer: Int(newValue))
-                        })) {
-                            ForEach(0..<10) {
-                                Text($0.description).tag($0)
-                            }
-                        }.pickerStyle(SegmentedPickerStyle()
-                    )
-                }
-            }
+    let session: CoreSession
 
-            LazyVGrid(columns: columns, spacing: 16) {
-                if core.color.available {
-                    ColorPropBox(title: "Primary color", core: core, prop: core.color)
-                }
-                if core.color2.available {
-                    ColorPropBox(title: "Secondary color", core: core, prop: core.color2)
-                }
-                if core.blendMode.available {
-                    DropDownPropBox(title: "Blend Mode", core: core, prop: core.blendMode, options: core.documentation.convertedValue()?.blendModes ?? [])
-                }
-                if core.animation.available {
-                    DropDownPropBox(title: "Animation", core: core, prop: core.animation, options: core.documentation.convertedValue()?.animations ?? [])
-                }
-                if core.beatSync.available {
-                    SwitchPropBox(title: "Beat sync", core: core, prop: core.beatSync)
-                }
-                if core.speed.available {
-                    let synced = (core.beatSync.convertedValue() ?? 0) > 0
-                    DoubleLogSliderPropBox(title: synced ? "Speed (beats per cycle)" : "Speed (seconds per cycle)",
-                                           core: core, prop: core.speed, range: 0.01 ... 60.0)
-                }
-                if core.tau.available {
-                    DoubleLogSliderPropBox(title: "Tau", core: core, prop: core.tau, range: 0.01 ... 80.0)
-                }
-                if core.phi.available {
-                    DoubleLogSliderPropBox(title: "Phi", core: core, prop: core.phi, range: 0.01 ... 80.0)
-                }
-            }
+    var body: some View {
+        TabView {
+            AnimationSettingsView(session: session)
+                .tabItem { Label("Animation", systemImage: "sparkles") }
+            CoreSettingsView(session: session)
+                .tabItem { Label("Core", systemImage: "gearshape") }
         }
-        .navigationTitle(core.localName)
+        .disabled(session.connection != .connected)
+        .safeAreaInset(edge: .top, spacing: 0) { banner }
     }
-}
 
-struct StringPropBox: View {
-    let title: String
-    let core: ShinerCore
-    @ObservedObject var prop: CorePropertyBase
-    @State private var editingAlert = false
-    @State private var name = ""
-    
-    var body: some View {
-        VStack {
-            Text(title)
-                .font(.headline)
-                .padding()
-            Button(action: changeAlert) {
-                Label(prop.rawValue ?? "...", systemImage: "square.and.pencil")
+    @ViewBuilder private var banner: some View {
+        if session.connection != .connected {
+            HStack {
+                ProgressView()
+                Text(session.connection == .connecting ? "Connecting…" : "Reconnecting…")
                     .font(.headline)
             }
-            .alert("Change core's name", isPresented: $editingAlert) {
-                TextField("Enter your name", text: $name)
-                Button("OK", action: submit)
-            } message: {
-                Text("Use your own nickname, and the core will rename itself to say it belongs to you.")
+            .frame(maxWidth: .infinity)
+            .padding(8)
+            .background(.orange.opacity(0.25))
+        } else if let error = session.lastError {
+            HStack {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.subheadline)
+                Spacer()
+                Button("Dismiss") { session.lastError = nil }
+                    .font(.subheadline)
             }
+            .padding(8)
+            .background(.red.opacity(0.25))
         }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 64)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
-    }
-    
-    func changeAlert()
-    {
-        editingAlert = true
-    }
-    
-    func submit()
-    {
-        core.write(newValue: name, to: prop)
     }
 }
 
-struct IntSliderPropBox: View {
-    let title: String
-    let core: ShinerCore
-    @ObservedObject var prop: CoreProperty<IntConverter>
-    let range: ClosedRange<Double>
-    
-    var body: some View {
-        VStack {
-            Text(title)
-                .font(.headline)
-            Slider(
-                value: Binding(get: {
-                    Double(prop.convertedValue() ?? 0)
-                }, set: { newValue in 
-                    core.write(newValue: prop.unconvertedValue(value: Int(newValue)), to: prop)
-                }),
-                in: range
-            )
-            Text(prop.rawValue ?? "...")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-        }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
-    }
-}
+/// Everything that shapes the current animation, per preset and layer.
+struct AnimationSettingsView: View {
+    let session: CoreSession
 
-struct SwitchPropBox: View {
-    let title: String
-    let core: ShinerCore
-    @ObservedObject var prop: CoreProperty<IntConverter>
-    
     var body: some View {
-        VStack {
-            Toggle(title, isOn: Binding(get: {
-                guard let ret = prop.convertedValue() else { return false }
-                return ret > 0 ? true : false
-            }, set: { newValue in
-                core.write(newValue: prop.unconvertedValue(value: newValue ? 1 : 0), to: prop)
-            }))
-        }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 64)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
-    }
-}
+        let docs = session.state.documentation
+        ScrollView {
+            VStack(spacing: 16) {
+                PickerRow(
+                    title: "Preset", count: 5,
+                    key: CoreProps.preset, session: session)
+                PickerRow(
+                    title: "Layer", count: 10,
+                    key: CoreProps.layer, session: session)
 
-struct DoubleSliderPropBox: View {
-    let title: String
-    let core: ShinerCore
-    @ObservedObject var prop: CoreProperty<DoubleConverter>
-    let range: ClosedRange<Double>
-    
-    var body: some View {
-        VStack {
-            Text(title)
-                .font(.headline)
-            Slider(
-                value: Binding(get: {
-                    prop.convertedValue() ?? range.lowerBound
-                }, set: { newValue in 
-                    core.write(newValue: prop.unconvertedValue(value: newValue), to: prop)
-                }),
-                in: range
-            )
-            Text(prop.rawValue ?? "...")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-        }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
-    }
-}
-
-struct DoubleLogSliderPropBox: View {
-    let title: String
-    let core: ShinerCore
-    @ObservedObject var prop: CoreProperty<DoubleConverter>
-    let range: ClosedRange<Double>
-    
-    var body: some View {
-        VStack {
-            Text(title)
-                .font(.headline)
-            Slider.withLog10Scale(
-                value: Binding(get: {
-                    prop.convertedValue() ?? range.lowerBound
-                }, set: { newValue in 
-                    core.write(newValue: prop.unconvertedValue(value: newValue), to: prop)
-                }),
-                in: range
-            )
-            Text(prop.rawValue ?? "...")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-        }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
-    }
-}
-
-struct ColorPropBox: View {
-    let title: String
-    let core: ShinerCore
-    @ObservedObject var prop: CoreProperty<ColorConverter>
-    
-    var body: some View {
-        VStack {
-            ColorPicker(title, 
-                selection: Binding(get: {
-                prop.convertedValue() ?? Color.black 
-                }, set: { newValue in 
-                    core.write(newValue: prop.unconvertedValue(value: newValue), to: prop)
-                })
-            )
-            Text(prop.rawValue ?? "...")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-        }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 128)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
-    }
-}
-
-struct DropDownPropBox: View {
-    let title: String
-    let core: ShinerCore
-    @ObservedObject var prop: CoreProperty<StringConverter>
-    let options: [String]
-    
-    private var currentIndex: Int {
-        guard let current = prop.convertedValue() else { return 0 }
-        return options.firstIndex(of: current) ?? 0
-    }
-    
-    private var hasOptions: Bool {
-        !options.isEmpty
-    }
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.headline)
-            
-            if hasOptions {
-                // Stepper arrows with current value
-                HStack(spacing: 12) {
-                    Button(action: stepBackward) {
-                        Image(systemName: "chevron.left.circle.fill")
-                            .font(.title2)
+                Grid(horizontalSpacing: 16, verticalSpacing: 16) {
+                    GridRow {
+                        ColorBox(title: "Primary color", session: session, key: CoreProps.color)
+                        ColorBox(title: "Secondary color", session: session, key: CoreProps.color2)
                     }
-                    .disabled(currentIndex <= 0)
-                    
-                    Menu {
-                        ForEach(options, id: \.self) { option in
-                            Button(action: {
-                                core.write(newValue: option, to: prop)
-                            }) {
-                                HStack {
-                                    Text(option)
-                                    if option == prop.convertedValue() {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Text(prop.convertedValue() ?? "...")
-                            .font(.body)
-                            .frame(minWidth: 80)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.gray.opacity(0.3))
-                            .cornerRadius(6)
+                    GridRow {
+                        MenuBox(title: "Blend mode", session: session, key: CoreProps.blendMode,
+                                options: docs?.blendModes ?? [])
+                        MenuBox(title: "Animation", session: session, key: CoreProps.animation,
+                                options: docs?.animations ?? [])
                     }
-                    
-                    Button(action: stepForward) {
-                        Image(systemName: "chevron.right.circle.fill")
-                            .font(.title2)
+                    GridRow {
+                        ToggleBox(title: "Beat sync", session: session, key: CoreProps.beatSync)
+                        LogSliderBox(
+                            title: (session.state[CoreProps.beatSync] ?? 0) > 0
+                                ? "Speed (beats per cycle)" : "Speed (seconds per cycle)",
+                            session: session, key: CoreProps.speed, range: 0.01 ... 60.0)
                     }
-                    .disabled(currentIndex >= options.count - 1)
+                    GridRow {
+                        LogSliderBox(title: "Tau", session: session, key: CoreProps.tau, range: 0.01 ... 80.0)
+                        LogSliderBox(title: "Phi", session: session, key: CoreProps.phi, range: 0.01 ... 80.0)
+                    }
                 }
-            } else {
-                // Fallback: just show the raw value when options aren't available
-                Text(prop.rawValue ?? "...")
-                    .font(.body)
-                    .foregroundColor(.secondary)
             }
+            .padding()
         }
-        .frame(minWidth: 100, maxWidth: .infinity, minHeight: 100)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(8)
-    }
-    
-    private func stepBackward() {
-        guard currentIndex > 0 else { return }
-        let newValue = options[currentIndex - 1]
-        core.write(newValue: newValue, to: prop)
-    }
-    
-    private func stepForward() {
-        guard currentIndex < options.count - 1 else { return }
-        let newValue = options[currentIndex + 1]
-        core.write(newValue: newValue, to: prop)
     }
 }
 
+/// Properties of the physical core itself, independent of animation.
+struct CoreSettingsView: View {
+    let session: CoreSession
 
-
-// https://gist.github.com/prachigauriar/c508799bad359c3aa271ccc0865de231
-extension Binding where Value == Double {
-    func logarithmic(base: Double = 10) -> Binding<Double> {
-        Binding(
-            get: {
-                log10(self.wrappedValue) / log10(base)
-            },
-            set: { newValue in
-                self.wrappedValue = pow(base, newValue)
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Grid(horizontalSpacing: 16, verticalSpacing: 16) {
+                    GridRow {
+                        ToggleBox(title: "Lights on", session: session, key: CoreProps.mode)
+                        NameBox(title: "Owner's name", session: session, key: CoreProps.name)
+                    }
+                    GridRow {
+                        IntSliderBox(title: "Brightness", session: session, key: CoreProps.brightness, range: 0 ... 255)
+                        IntSliderBox(title: "Number of LEDs", session: session, key: CoreProps.ledCount, range: 0 ... 800)
+                    }
+                    GridRow {
+                        MenuBox(title: "LED order", session: session, key: CoreProps.ledOrder,
+                                options: session.state.documentation?.ledColorOrders ?? [])
+                    }
+                }
             }
-        )
+            .padding()
+        }
     }
 }
 
+/// Segmented picker for layer/preset switches, whose device-side change
+/// fans out to the other props (hence `select`, not `set`).
+struct PickerRow: View {
+    let title: String
+    let count: Int
+    let key: PropertyKey<IntConverter>
+    let session: CoreSession
 
-extension Slider where Label == EmptyView, ValueLabel == EmptyView {
-    static func withLog10Scale(
-        value: Binding<Double>,
-        in range: ClosedRange<Double>,
-        onEditingChanged: @escaping (Bool) -> Void = { _ in }
-    ) -> Slider {
-        return self.init(
-            value: value.logarithmic(),
-            in: log10(range.lowerBound) ... log10(range.upperBound),
-            onEditingChanged: onEditingChanged
-        )
+    var body: some View {
+        HStack {
+            Text(title + ":").font(.headline)
+            Picker(title, selection: Binding(
+                get: { session.state[key] ?? 0 },
+                set: { session.select(key, $0) }
+            )) {
+                ForEach(0..<count, id: \.self) {
+                    Text($0.description).tag($0)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+        .availability(of: key, in: session)
+    }
+}
+
+#Preview("Connected") {
+    let session = CoreSession(link: FakeCoreLink.demo())
+    NavigationStack {
+        CoreControlsView(session: session)
+            .navigationTitle("Vindarnas hus")
+    }
+    .task { await session.run() }
+}
+
+#Preview("Reconnecting") {
+    let link = FakeCoreLink.demo()
+    let session = CoreSession(link: link)
+    NavigationStack {
+        CoreControlsView(session: session)
+            .navigationTitle("Vindarnas hus")
+    }
+    .task {
+        link.becomeUnreachable()
+        await session.run()
     }
 }
