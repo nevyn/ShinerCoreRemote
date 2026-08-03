@@ -36,6 +36,7 @@ public enum CoreProps {
     public static let blendMode = PropertyKey<StringConverter>("blendMode", "03686c5c-6e6f-44f0-943f-db6388d9fdd4")
     public static let ledOrder = PropertyKey<StringConverter>("ledOrder", "f3b7c8a1-5d2e-4f19-8c6a-9e1d0b2c3a4f")
     public static let ledCount = PropertyKey<IntConverter>("ledCount", "f5c67dcb-8798-4818-901f-cff9917d1a62")
+    public static let maxCurrent = PropertyKey<IntConverter>("maxCurrent", "2b6d7f98-2df7-446d-a0df-112e34d202f5")
     public static let mic = PropertyKey<IntConverter>("mic", "519f61ae-bb92-425f-90fa-29aabc63520d")
     public static let mesh = PropertyKey<IntConverter>("mesh", "808fb660-9eba-45c2-862c-be18a55195ed")
     public static let meshShow = PropertyKey<IntConverter>("meshShow", "f4d7b6bd-aeb2-4ea1-a5fc-254e3db10200")

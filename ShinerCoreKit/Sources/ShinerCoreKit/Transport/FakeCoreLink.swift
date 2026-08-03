@@ -119,6 +119,7 @@ public final class FakeCoreLink: CoreLink {
             CoreProps.meshShow.id: "1",
             CoreProps.meshGroup.id: "kidsville",
             CoreProps.carouselBeats.id: "8",
+            CoreProps.maxCurrent.id: "0",
             CoreProps.documentation.id: #"{"blendModes":["add","multiply","overwrite"],"animations":["rainbow","pulse","sparkle","solid"],"ledColorOrders":["RGB","GRB","BGR"]}"#,
         ])
     }
