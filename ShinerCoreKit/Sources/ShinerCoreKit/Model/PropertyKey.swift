@@ -39,6 +39,7 @@ public enum CoreProps {
     public static let mic = PropertyKey<IntConverter>("mic", "519f61ae-bb92-425f-90fa-29aabc63520d")
     public static let mesh = PropertyKey<IntConverter>("mesh", "808fb660-9eba-45c2-862c-be18a55195ed")
     public static let meshShow = PropertyKey<IntConverter>("meshShow", "f4d7b6bd-aeb2-4ea1-a5fc-254e3db10200")
+    public static let meshGroup = PropertyKey<StringConverter>("meshGroup", "12239682-6d25-45d1-a3b5-182dfa6cf106")
     public static let carouselBeats = PropertyKey<IntConverter>("carouselBeats", "1bc3f537-b285-4def-a2f9-285dae0b2aaa")
     public static let documentation = PropertyKey<DocumentationConverter>("documentation", "76db9199-21af-4207-a23c-dc138a6cd42d")
 }

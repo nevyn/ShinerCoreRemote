@@ -161,11 +161,15 @@ struct MenuBox: View {
     }
 }
 
-/// The owner-name property, edited via an alert.
+/// A string property, edited via an alert.
 struct NameBox: View {
     let title: String
     let session: CoreSession
     let key: PropertyKey<StringConverter>
+    let alertTitle: String
+    let prompt: String
+    let message: String
+    var emptyLabel = "…"
     @State private var editing = false
     @State private var name = ""
 
@@ -176,15 +180,15 @@ struct NameBox: View {
                 name = session.state[key] ?? ""
                 editing = true
             }) {
-                Label(session.state[key] ?? "…", systemImage: "square.and.pencil")
+                Label((session.state[key]?.isEmpty == false ? session.state[key]! : emptyLabel), systemImage: "square.and.pencil")
                     .font(.headline)
             }
-            .alert("Change core's name", isPresented: $editing) {
-                TextField("Enter your name", text: $name)
+            .alert(alertTitle, isPresented: $editing) {
+                TextField(prompt, text: $name)
                 Button("OK") { session.set(key, to: name) }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Use your own nickname, and the core will rename itself to say it belongs to you.")
+                Text(message)
             }
         }
         .propBox(key, in: session)

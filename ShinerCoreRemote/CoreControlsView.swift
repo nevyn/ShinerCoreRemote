@@ -108,7 +108,10 @@ struct CoreSettingsView: View {
                 Grid(horizontalSpacing: 16, verticalSpacing: 16) {
                     GridRow {
                         ToggleBox(title: "Lights on", session: session, key: CoreProps.mode)
-                        NameBox(title: "Owner's name", session: session, key: CoreProps.name)
+                        NameBox(title: "Owner's name", session: session, key: CoreProps.name,
+                                alertTitle: "Change core's name",
+                                prompt: "Enter your name",
+                                message: "Use your own nickname, and the core will rename itself to say it belongs to you.")
                     }
                     GridRow {
                         IntSliderBox(title: "Brightness", session: session, key: CoreProps.brightness, range: 0 ... 255)
@@ -137,6 +140,14 @@ struct MeshSettingsView: View {
                     GridRow {
                         ToggleBox(title: "Mesh radio", session: session, key: CoreProps.mesh)
                         ToggleBox(title: "Play shared show", session: session, key: CoreProps.meshShow)
+                    }
+                    GridRow {
+                        NameBox(title: "Group", session: session, key: CoreProps.meshGroup,
+                                alertTitle: "Join a group",
+                                prompt: "Camp or crew name",
+                                message: "Cores only sync and share shows within the same group. Case and surrounding spaces don't matter. Leave empty to run with everyone else who left it empty.",
+                                emptyLabel: "everyone")
+                            .gridCellColumns(2)
                     }
                     // carouselBeats is deliberately absent: the firmware doesn't
                     // sync it between cores yet, so exposing it invites desync.
