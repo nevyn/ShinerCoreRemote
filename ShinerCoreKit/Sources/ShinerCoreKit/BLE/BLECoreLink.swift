@@ -135,7 +135,7 @@ extension BLECoreLink: @preconcurrency CBPeripheralDelegate {
         if let error {
             // Only read requests produce errors; notifications can't.
             if wasRequested { outstandingReads[id]! -= 1 }
-            emit.yield(.readFailed(id, CoreLinkError(wrapping: error)))
+            emit.yield(Self.readOutcome(id, error))
         } else if let data = characteristic.value, let raw = String(data: data, encoding: .utf8) {
             if wasRequested {
                 outstandingReads[id]! -= 1
@@ -147,6 +147,17 @@ extension BLECoreLink: @preconcurrency CBPeripheralDelegate {
             if wasRequested { outstandingReads[id]! -= 1 }
             emit.yield(.readFailed(id, CoreLinkError("Value is not UTF-8")))
         }
+    }
+
+    /// Firmware before the ArduinoBLE fork's zero-length fix replies Invalid
+    /// Offset to any read of an empty value (only meshGroup can encode empty).
+    /// Every property fits in one MTU, so the error can only mean "empty" —
+    /// deliver that as the value rather than an error banner.
+    nonisolated static func readOutcome(_ id: PropertyID, _ error: any Error) -> CoreLinkEvent {
+        if let att = error as? CBATTError, att.code == .invalidOffset {
+            return .valueRead(id, "")
+        }
+        return .readFailed(id, CoreLinkError(wrapping: error))
     }
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: (any Error)?) {
