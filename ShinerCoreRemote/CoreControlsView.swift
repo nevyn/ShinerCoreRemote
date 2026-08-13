@@ -2,21 +2,32 @@ import SwiftUI
 import ShinerCoreKit
 
 struct CoreControlsView: View {
+    enum Tab: String, CaseIterable { case animation, core, mesh }
+
     let session: CoreSession
+    @State private var tab: Tab
+
+    init(session: CoreSession, tab: Tab = .animation) {
+        self.session = session
+        _tab = State(initialValue: tab)
+    }
 
     var body: some View {
         // .disabled sits on the tab contents, not the TabView, so the user
         // can still switch tabs while reconnecting.
-        TabView {
+        TabView(selection: $tab) {
             AnimationSettingsView(session: session)
                 .disabled(session.connection != .connected)
                 .tabItem { Label("Animation", systemImage: "sparkles") }
+                .tag(Tab.animation)
             CoreSettingsView(session: session)
                 .disabled(session.connection != .connected)
                 .tabItem { Label("Core", systemImage: "gearshape") }
+                .tag(Tab.core)
             MeshSettingsView(session: session)
                 .disabled(session.connection != .connected)
                 .tabItem { Label("Mesh", systemImage: "antenna.radiowaves.left.and.right") }
+                .tag(Tab.mesh)
         }
         .safeAreaInset(edge: .top, spacing: 0) { banner }
     }
