@@ -85,8 +85,19 @@ hand-edit the pbxproj to add files.
 * Real-device behavior (actual BLE) can't be simulated; previews + FakeCoreLink cover
   logic, the user covers hardware smoke tests.
 * **Visual verification in the simulator** (DEBUG builds): launch with `-demo`
-  (controls, connected fake), `-demo-offline` (reconnecting state), or `-demo-list`
-  (full list → detail flow against fakes), then `xcrun simctl io booted screenshot`.
+  (controls, connected fake), `-demo-tab animation|core|mesh` (a specific tab),
+  `-demo-offline` (reconnecting state), or `-demo-list` (the discovery list), then
+  `xcrun simctl io booted screenshot`. Every screen is reachable by argument alone —
+  keep it that way when adding screens, it's what makes captures tap-free.
+* **The whole screenshot set**: `Scripts/screenshots.sh [iphone|ipad|all]` builds,
+  boots, launches each demo argument and captures into `screenshots/<ASC display type>/`
+  at the exact pixel sizes App Store Connect accepts. Upload deliberately, never
+  blindly: `asc screenshots download` the target version first (a draft inherits the
+  live shots, and duplicates have snuck in this way), then `asc screenshots upload
+  --version-localization … --device-type IPHONE_67|IPAD_PRO_3GEN_129`. Only a version
+  in `PREPARE_FOR_SUBMISSION` is editable.
+* The Mac build is a compile gate, not a product: on the Mac this ships as the iPad
+  app, so App Store Connect has no macOS version and there are no Mac screenshots.
 
 Team is `M4Q2TE45WT` (personal — never the FR24 account), bundle `jpg.nevyn.shinerconf`.
 
