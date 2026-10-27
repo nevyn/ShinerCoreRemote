@@ -12,6 +12,12 @@ public struct Wiring: Equatable, Sendable {
         set { roles[pin] = newValue }
     }
 
+    /// The role that `pin` acts with on the core: its stored role, except that the
+    /// front button acts as `nextPreset` while its key is absent.
+    public func role(of pin: String, docs: WiringDocs) -> PinRole? {
+        roles[pin] ?? (pin == docs.frontButton ? .button(.nextPreset) : nil)
+    }
+
     /// Decodes the `wiring` value, rejecting what the firmware would reject
     /// where that is knowable without the board's pin table.
     public init(json: String) throws(WiringError) {

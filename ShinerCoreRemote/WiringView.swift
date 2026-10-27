@@ -1,7 +1,8 @@
 import SwiftUI
 import ShinerCoreKit
 
-/// The Wiring tab: one row per pin of the board, with its role and live state.
+/// The Wiring tab: one row per pin of the board, with its role and live state,
+/// and one for the front button when the firmware makes it configurable.
 struct WiringView: View {
     let session: CoreSession
     @State private var editing: EditTarget?
@@ -70,7 +71,7 @@ struct WiringView: View {
 
     private func emphasis(_ pins: [WiringPin]) -> [String: Color] {
         var e: [String: Color] = [:]
-        for pin in pins where pin.claim == nil && pin.role != nil { e[pin.id] = RoleKind(pin.role).tint }
+        for pin in pins where pin.claim == nil && pin.role != nil && !pin.isFrontButton { e[pin.id] = RoleKind(pin.role).tint }
         return e
     }
 }
@@ -83,8 +84,9 @@ struct WiringPin: Identifiable, Equatable {
     /// What holds the pin right now ("the speaker"); nil when the pin is free.
     let claim: String?
     let state: PinState?
+    var isFrontButton = false
 
-    /// Grove signal pins first, then the header, with pins that hardware can claim last.
+    /// The front button first, then Grove signal pins, then the header, with pins that hardware can claim last.
     static func all(docs: WiringDocs, wiring: Wiring, status: PinStatus?, layout: BoardLayout?) -> [WiringPin] {
         let order = docs.pins.enumerated().sorted { a, b in
             func rank(_ p: (offset: Int, element: String)) -> (Int, Int, Int) {
@@ -92,7 +94,10 @@ struct WiringPin: Identifiable, Equatable {
             }
             return rank(a) < rank(b)
         }
-        return order.map { _, pin in
+        let front = docs.frontButton.map {
+            [WiringPin(id: $0, role: wiring.role(of: $0, docs: docs), analog: false, claim: nil, state: nil, isFrontButton: true)]
+        } ?? []
+        return front + order.map { _, pin in
             let state = status?.state(of: pin, in: docs)
             // Until pinStatus arrives, assume a claimable pin is claimed: writes to it may be rejected.
             let claimed = state?.claimed ?? (docs.claims[pin] != nil)
@@ -180,14 +185,14 @@ struct PinRow: View {
                 Spacer()
             } else {
                 VStack(alignment: .leading, spacing: 2) {
-                    Label(kind.rawValue, systemImage: kind.symbol)
+                    Label(pin.isFrontButton ? "Front button" : kind.rawValue, systemImage: kind.symbol)
                         .font(.headline)
                     Text(pin.role.summary)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                LiveIndicator(pin: pin)
+                if !pin.isFrontButton { LiveIndicator(pin: pin) }  // pinStatus doesn't report the front button
                 Image(systemName: "chevron.right").foregroundStyle(.tertiary)
             }
         }

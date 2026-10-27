@@ -7,6 +7,10 @@ public struct WiringDocs: Equatable, Sendable {
     public let board: String
     /// Every wiring pin, in status bit order.
     public let pins: [String]
+    /// The label of the button on the face of the case ("G39"); nil from firmware that
+    /// predates a configurable front button. Its only role is button, it is not in `pins`
+    /// so `PinStatus` doesn't report it, and an absent wiring key means `nextPreset`.
+    public let frontButton: String?
     /// Pins that can be knobs.
     public let analog: Set<String>
     /// Pins that can be LEDs.
@@ -17,10 +21,11 @@ public struct WiringDocs: Equatable, Sendable {
     /// Knob targets that this firmware supports and the app knows, in firmware order.
     public let targets: [KnobTarget]
 
-    public init(board: String, pins: [String], analog: Set<String>, led: Set<String>,
+    public init(board: String, pins: [String], frontButton: String? = nil, analog: Set<String>, led: Set<String>,
                 claims: [String: String], targets: [KnobTarget]) {
         self.board = board
         self.pins = pins
+        self.frontButton = frontButton
         self.analog = analog
         self.led = led
         self.claims = claims
@@ -42,16 +47,21 @@ public struct WiringDocs: Equatable, Sendable {
         guard wire.pins.count <= 8 else { throw .malformed("wiringDocs lists \(wire.pins.count) pins; pinStatus masks hold 8") }
         if let bad = wire.pins.first(where: { !isPinLabel($0) }) { throw .unknownPin(bad) }
         let pins = Set(wire.pins)
+        if let front = wire.frontButton {
+            guard isPinLabel(front) else { throw .unknownPin(front) }
+            guard !pins.contains(front) else { throw .malformed("wiringDocs lists front button \(front) among the pins") }
+        }
         if let bad = (wire.analog + wire.led + wire.claims.keys).first(where: { !pins.contains($0) }) {
             throw .unknownPin(bad)
         }
-        self.init(board: wire.board, pins: wire.pins, analog: Set(wire.analog), led: Set(wire.led),
+        self.init(board: wire.board, pins: wire.pins, frontButton: wire.frontButton, analog: Set(wire.analog), led: Set(wire.led),
                   claims: wire.claims, targets: wire.targets.compactMap(KnobTarget.init(id:)))
     }
 
     private struct Wire: Decodable {
         let board: String
         let pins: [String]
+        let frontButton: String?
         let analog: [String]
         let led: [String]
         let claims: [String: String]
