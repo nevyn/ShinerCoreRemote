@@ -207,8 +207,6 @@ struct LiveIndicator: View {
             EmptyView()
         case .knob:
             positionBar
-        case .nothing where pin.analog:
-            positionBar
         default:
             let closed = pin.state?.closed ?? false
             VStack(spacing: 2) {
