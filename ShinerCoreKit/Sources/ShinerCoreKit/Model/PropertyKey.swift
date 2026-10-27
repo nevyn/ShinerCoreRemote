@@ -43,4 +43,7 @@ public enum CoreProps {
     public static let meshGroup = PropertyKey<StringConverter>("meshGroup", "12239682-6d25-45d1-a3b5-182dfa6cf106")
     public static let carouselBeats = PropertyKey<IntConverter>("carouselBeats", "1bc3f537-b285-4def-a2f9-285dae0b2aaa")
     public static let documentation = PropertyKey<DocumentationConverter>("documentation", "76db9199-21af-4207-a23c-dc138a6cd42d")
+    public static let wiring = PropertyKey<WiringConverter>("wiring", "2be57867-0fd5-45b7-93af-c9edff69fe60")
+    public static let pinStatus = PropertyKey<PinStatusConverter>("pinStatus", "53775889-c119-4673-89f2-359a80fabcca")
+    public static let wiringDocs = PropertyKey<WiringDocsConverter>("wiringDocs", "682bf183-44f6-4dc9-9eb0-640c05ae45db")
 }

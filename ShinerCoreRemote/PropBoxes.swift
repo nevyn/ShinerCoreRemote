@@ -79,10 +79,29 @@ struct ToggleBox: View {
     let title: String
     let session: CoreSession
     let key: PropertyKey<IntConverter>
+    /// The pin of a closed switch that holds this value; disables the toggle.
+    var heldBy: String?
 
     var body: some View {
-        Toggle(title, isOn: session.boolBinding(key))
-            .propBox(key, in: session)
+        VStack {
+            Toggle(title, isOn: session.boolBinding(key))
+                .disabled(heldBy != nil)
+            HeldCaption(pin: heldBy)
+        }
+        .propBox(key, in: session)
+    }
+}
+
+/// Says which wired switch is holding a setting, so the app can't change it.
+struct HeldCaption: View {
+    let pin: String?
+
+    var body: some View {
+        if let pin {
+            Label("Held by the switch on \(pin)", systemImage: "switch.2")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

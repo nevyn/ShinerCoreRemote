@@ -31,6 +31,11 @@ public final class CoreSession {
     @ObservationIgnored private var pendingReads: [PropertyID: Int] = [:]
     @ObservationIgnored private var writeTasks: [PropertyID: Task<Void, Never>] = [:]
     @ObservationIgnored private var hasRun = false
+    /// The pinStatus revision of the wiring last read; nil until the first
+    /// pinStatus after connecting, whose wiring the connect refresh reads.
+    @ObservationIgnored private var wiringRevision: UInt8?
+    /// The wiring last written, until the device's wiring is next read back.
+    @ObservationIgnored private var expectedWiring: Wiring?
 
     public init(link: any CoreLink, throttle: Duration = .milliseconds(100)) {
         self.link = link
@@ -63,6 +68,7 @@ public final class CoreSession {
             if let reason { lastError = reason.description }
             dirty = []
             pendingReads = [:]
+            wiringRevision = nil
             state.available = []  // firmware may differ after reconnect; rediscovery repopulates
             link.connect()
         case .incompatible(let reason):
@@ -73,6 +79,7 @@ public final class CoreSession {
             let wasDirty = dirty.contains(id)  // before finishRead may settle it
             finishRead(of: id)
             guard !wasDirty else { return }  // stale; the acked optimistic value stands
+            if id == CoreProps.wiring.id { confirmWiringWrite(raw) }
             applyDeviceValue(id, raw)
         case .valueChanged(let id, let raw):
             // A notification: another central, cursor fanout, or our own
@@ -88,11 +95,48 @@ public final class CoreSession {
     private func applyDeviceValue(_ id: PropertyID, _ raw: String) {
         guard state.raw[id] != raw else { return }
         state.raw[id] = raw
-        if id == CoreProps.documentation.id {
+        switch id {
+        case CoreProps.documentation.id:
             state.documentation = DocumentationConverter.convert(raw)
             if state.documentation == nil {
                 lastError = "Core sent unparseable documentation"
             }
+        case CoreProps.wiringDocs.id:
+            do {
+                state.wiringDocs = try WiringDocs(json: raw)
+            } catch {
+                state.wiringDocs = nil
+                lastError = "Core sent unreadable wiring docs: \(error)"
+            }
+        case CoreProps.wiring.id:
+            do {
+                _ = try Wiring(json: raw)
+            } catch {
+                lastError = "Core sent wiring this app can't read (update the app?): \(error)"
+            }
+        case CoreProps.pinStatus.id:
+            do {
+                let revision = try PinStatus(hex: raw).revision
+                // wiring has no notify; a new revision is how we learn it changed.
+                if let seen = wiringRevision, seen != revision, state.available.contains(CoreProps.wiring.id) {
+                    issueRead(CoreProps.wiring.id)
+                }
+                wiringRevision = revision
+            } catch {
+                lastError = "Core sent unreadable pin status: \(error)"
+            }
+        default:
+            break
+        }
+    }
+
+    /// The firmware rejects invalid wiring silently, keeping its own; the
+    /// read-back after a write is the only place that shows.
+    private func confirmWiringWrite(_ raw: String) {
+        guard let expected = expectedWiring else { return }
+        expectedWiring = nil
+        if WiringConverter.convert(raw) != expected {
+            lastError = "The core rejected that wiring change and kept its previous wiring."
         }
     }
 
@@ -140,6 +184,7 @@ public final class CoreSession {
             guard connection == .connected, let raw = state.raw[id] else { break }
             do {
                 try await link.write(raw, to: id)
+                if id == CoreProps.wiring.id { expectedWiring = WiringConverter.convert(raw) }
             } catch {
                 lastError = "Couldn't set \(name): \(error.localizedDescription)"
                 break

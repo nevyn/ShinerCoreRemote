@@ -151,8 +151,10 @@ extension BLECoreLink: @preconcurrency CBPeripheralDelegate {
 
     /// Firmware before the ArduinoBLE fork's zero-length fix replies Invalid
     /// Offset to any read of an empty value (only meshGroup can encode empty).
-    /// Every property fits in one MTU, so the error can only mean "empty" —
-    /// deliver that as the value rather than an error banner.
+    /// `documentation`, `wiring` and `wiringDocs` exceed one MTU and are read
+    /// with Read Blob, but only an empty value produces Invalid Offset at
+    /// offset 0, so the error still means "empty": deliver that as the value
+    /// rather than an error banner.
     nonisolated static func readOutcome(_ id: PropertyID, _ error: any Error) -> CoreLinkEvent {
         if let att = error as? CBATTError, att.code == .invalidOffset {
             return .valueRead(id, "")
