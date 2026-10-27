@@ -44,6 +44,12 @@ SIMS=(
 
 say() { printf '\n▸ %s\n' "$*"; }
 
+# The iPad draws the discovery list as a narrow sidebar beside an empty detail
+# pane, which is a weak lead screenshot; its set starts at the first tab.
+skip_shot() {
+  [ "$1" = "APP_IPAD_PRO_3GEN_129" ] && [ "$2" = "1-cores" ]
+}
+
 capture_sim() {
   local device="$1" display="$2" udid dir
   udid=$(xcrun simctl list devices available -j \
@@ -64,6 +70,7 @@ capture_sim() {
   mkdir -p "$dir"
   for shot in "${SHOTS[@]}"; do
     local name=${shot%%:*} args=${shot#*:}
+    if skip_shot "$display" "$name"; then continue; fi
     xcrun simctl terminate "$udid" "$BUNDLE" 2>/dev/null || true
     # shellcheck disable=SC2086 -- args are intentionally word-split
     xcrun simctl launch "$udid" "$BUNDLE" $args >/dev/null

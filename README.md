@@ -7,9 +7,10 @@ and the same code builds a Mac app.
 
 Nearby cores appear in a list; connect to one and every control — animation, colors, speed,
 brightness, layers and presets, beat sync, and the ESP-NOW mesh — takes effect on the strip
-as you touch it.
+as you touch it. The Wiring tab draws your board and gives each pin a job: a switch,
+a button, a knob, or the LED strip itself.
 
-<img src="img/cores.png" width="24%"> <img src="img/core-animation.png" width="24%"> <img src="img/core-settings.png" width="24%"> <img src="img/core-mesh.png" width="24%">
+<img src="img/cores.png" width="19%"> <img src="img/core-animation.png" width="19%"> <img src="img/core-settings.png" width="19%"> <img src="img/core-mesh.png" width="19%"> <img src="img/core-wiring.png" width="19%">
 
 What comes out the other end:
 
