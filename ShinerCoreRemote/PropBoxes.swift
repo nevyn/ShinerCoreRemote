@@ -75,6 +75,53 @@ struct LogSliderBox: View {
     }
 }
 
+/// Speed while beat-synced: beats per cycle, snapped to musical detents.
+/// The slider runs in log2 space so each detent gets even travel; the value
+/// label reads musically ("½ beat", "4 beats") instead of as a float.
+struct BeatSpeedBox: View {
+    let title: String
+    let session: CoreSession
+    let key: PropertyKey<DoubleConverter>
+
+    static let detents: [Double] = [0.25, 0.5, 1, 2, 3, 4, 6, 8, 16]
+
+    var body: some View {
+        VStack {
+            Text(title).font(.headline)
+            Slider(
+                value: Binding(
+                    get: { log2(session.state[key] ?? 1) },
+                    set: { set(Self.snapped(pow(2, $0))) }
+                ),
+                in: log2(Self.detents.first!) ... log2(Self.detents.last!))
+            Text(Self.label(for: session.state[key] ?? 1))
+            RawValueText(raw: session.state.rawValue(of: key))
+        }
+        .sensoryFeedback(.selection, trigger: session.state[key])
+        .propBox(key, in: session)
+    }
+
+    private func set(_ newValue: Double) {
+        guard newValue != session.state[key] else { return }
+        session.set(key, to: newValue)
+    }
+
+    /// Nearest detent by log distance, matching the slider's travel.
+    static func snapped(_ value: Double) -> Double {
+        detents.min { abs(log2($0 / value)) < abs(log2($1 / value)) }!
+    }
+
+    static func label(for beats: Double) -> String {
+        switch beats {
+        case 0.25: "¼ beat"
+        case 0.5: "½ beat"
+        case 1: "1 beat"
+        case beats.rounded(): "\(Int(beats)) beats"
+        default: String(format: "%.2f beats", beats) // pre-detent stored value
+        }
+    }
+}
+
 struct ToggleBox: View {
     let title: String
     let session: CoreSession
@@ -212,6 +259,16 @@ struct NameBox: View {
         }
         .propBox(key, in: session)
     }
+}
+
+#Preview("BeatSpeedBox") {
+    let session = CoreSession(link: FakeCoreLink(values: [
+        CoreProps.speed.id: "4.000",
+        CoreProps.beatSync.id: "1",
+    ]))
+    BeatSpeedBox(title: "Speed (beats per cycle)", session: session, key: CoreProps.speed)
+        .padding()
+        .task { await session.run() }
 }
 
 // https://gist.github.com/prachigauriar/c508799bad359c3aa271ccc0865de231
