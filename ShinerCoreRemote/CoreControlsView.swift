@@ -98,10 +98,13 @@ struct AnimationSettingsView: View {
                     }
                     GridRow {
                         ToggleBox(title: "Beat sync", session: session, key: CoreProps.beatSync)
-                        LogSliderBox(
-                            title: (session.state[CoreProps.beatSync] ?? 0) > 0
-                                ? "Speed (beats per cycle)" : "Speed (seconds per cycle)",
-                            session: session, key: CoreProps.speed, range: 0.01 ... 60.0)
+                        if (session.state[CoreProps.beatSync] ?? 0) > 0 {
+                            BeatSpeedBox(title: "Speed (beats per cycle)",
+                                         session: session, key: CoreProps.speed)
+                        } else {
+                            LogSliderBox(title: "Speed (seconds per cycle)",
+                                         session: session, key: CoreProps.speed, range: 0.01 ... 60.0)
+                        }
                     }
                     GridRow {
                         LogSliderBox(title: "Tau", session: session, key: CoreProps.tau, range: 0.01 ... 80.0)
