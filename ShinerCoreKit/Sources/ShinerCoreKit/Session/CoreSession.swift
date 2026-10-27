@@ -31,6 +31,9 @@ public final class CoreSession {
     @ObservationIgnored private var pendingReads: [PropertyID: Int] = [:]
     @ObservationIgnored private var writeTasks: [PropertyID: Task<Void, Never>] = [:]
     @ObservationIgnored private var hasRun = false
+    /// The pinStatus revision of the wiring last read; nil until the first
+    /// pinStatus after connecting, whose wiring the connect refresh reads.
+    @ObservationIgnored private var wiringRevision: UInt8?
 
     public init(link: any CoreLink, throttle: Duration = .milliseconds(100)) {
         self.link = link
@@ -63,6 +66,7 @@ public final class CoreSession {
             if let reason { lastError = reason.description }
             dirty = []
             pendingReads = [:]
+            wiringRevision = nil
             state.available = []  // firmware may differ after reconnect; rediscovery repopulates
             link.connect()
         case .incompatible(let reason):
@@ -88,11 +92,38 @@ public final class CoreSession {
     private func applyDeviceValue(_ id: PropertyID, _ raw: String) {
         guard state.raw[id] != raw else { return }
         state.raw[id] = raw
-        if id == CoreProps.documentation.id {
+        switch id {
+        case CoreProps.documentation.id:
             state.documentation = DocumentationConverter.convert(raw)
             if state.documentation == nil {
                 lastError = "Core sent unparseable documentation"
             }
+        case CoreProps.wiringDocs.id:
+            do {
+                state.wiringDocs = try WiringDocs(json: raw)
+            } catch {
+                state.wiringDocs = nil
+                lastError = "Core sent unreadable wiring docs: \(error)"
+            }
+        case CoreProps.wiring.id:
+            do {
+                _ = try Wiring(json: raw)
+            } catch {
+                lastError = "Core sent wiring this app can't read (update the app?): \(error)"
+            }
+        case CoreProps.pinStatus.id:
+            do {
+                let revision = try PinStatus(hex: raw).revision
+                // wiring has no notify; a new revision is how we learn it changed.
+                if let seen = wiringRevision, seen != revision, state.available.contains(CoreProps.wiring.id) {
+                    issueRead(CoreProps.wiring.id)
+                }
+                wiringRevision = revision
+            } catch {
+                lastError = "Core sent unreadable pin status: \(error)"
+            }
+        default:
+            break
         }
     }
 

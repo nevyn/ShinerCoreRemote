@@ -1,7 +1,8 @@
 import Foundation
 
 /// A scripted `CoreLink` for previews and tests: connects instantly,
-/// acks writes, and echoes reads from an in-memory property table.
+/// acks writes, and echoes reads from an in-memory property table. Like the
+/// firmware, a `wiring` write bumps the pinStatus revision and notifies it.
 @MainActor
 public final class FakeCoreLink: CoreLink {
     public let events: AsyncStream<CoreLinkEvent>
@@ -11,6 +12,8 @@ public final class FakeCoreLink: CoreLink {
     public var values: [PropertyID: String]
     /// Every write that reached the "device", in order.
     public private(set) var written: [(id: PropertyID, raw: String)] = []
+    /// Every read request, in order.
+    public private(set) var readRequests: [PropertyID] = []
     public private(set) var connectCount = 0
     public private(set) var disconnectCount = 0
     /// While false, `connect()` becomes a pending intent — like the real
@@ -67,9 +70,16 @@ public final class FakeCoreLink: CoreLink {
         guard reachable else { throw CoreLinkError("Disconnected") }
         written.append((id, raw))
         values[id] = raw
+        if id == CoreProps.wiring.id, let status = values[CoreProps.pinStatus.id].flatMap(PinStatusConverter.convert) {
+            let bumped = PinStatus(revision: status.revision &+ 1, closed: status.closed,
+                                   claimed: status.claimed, positions: status.positions).hex
+            values[CoreProps.pinStatus.id] = bumped
+            emit.yield(.valueChanged(CoreProps.pinStatus.id, bumped))
+        }
     }
 
     public func read(_ id: PropertyID) {
+        readRequests.append(id)
         if deferReads {
             deferredReads.append((id, values[id]))
         } else {
@@ -96,9 +106,14 @@ public final class FakeCoreLink: CoreLink {
         emit.yield(event)
     }
 
-    /// A populated fake for previews.
-    public static func demo() -> FakeCoreLink {
-        FakeCoreLink(values: [
+    /// The boards that `demo(board:)` can pose as.
+    public enum DemoBoard: String, CaseIterable, Sendable {
+        case atomEcho = "atom-echo", atomLite = "atom-lite", atomS3Lite = "atoms3-lite"
+    }
+
+    /// A populated fake for previews, wired like the given board might be.
+    public static func demo(board: DemoBoard = .atomEcho) -> FakeCoreLink {
+        let link = FakeCoreLink(values: [
             CoreProps.mode.id: "1",
             CoreProps.brightness.id: "180",
             CoreProps.name.id: "Nevyn",
@@ -122,5 +137,24 @@ public final class FakeCoreLink: CoreLink {
             CoreProps.maxCurrent.id: "0",
             CoreProps.documentation.id: #"{"blendModes":["add","multiply","overwrite"],"animations":["rainbow","pulse","sparkle","solid"],"ledColorOrders":["RGB","GRB","BGR"]}"#,
         ])
+        let targets = #""targets":["brightness","speed","tau","phi","color1.r","color1.g","color1.b","color1.h","color1.s","color1.v","color2.r","color2.g","color2.b","color2.h","color2.s","color2.v"]"#
+        let atomPins = #""pins":["G21","G25","G22","G19","G23","G33","G26","G32"]"#
+        switch board {
+        case .atomEcho:
+            link.values[CoreProps.wiringDocs.id] = #"{"board":"atom-echo",\#(atomPins),"analog":["G32"],"led":["G26","G32"],"claims":{"G19":"speaker","G22":"speaker","G23":"microphone","G33":"microphone"},\#(targets)}"#
+            link.values[CoreProps.wiring.id] = #"{"G21":{"button":"nextPreset"},"G25":{"switch":"lightsOff"},"G26":{"leds":true},"G32":{"knob":"brightness","min":0,"max":255}}"#
+            link.values[CoreProps.pinStatus.id] = "07013c9e"  // G21 pressed, knob at 62%
+        case .atomLite:
+            link.values[CoreProps.wiringDocs.id] = #"{"board":"atom-lite",\#(atomPins),"analog":["G33","G32"],"led":["G26","G32"],"claims":{"G23":"microphone","G33":"microphone"},\#(targets)}"#
+            link.values[CoreProps.wiring.id] = #"{"G21":{"button":"nextPreset"},"G25":{"switch":"lightsOff"},"G22":{"switch":"preset","preset":0},"G19":{"switch":"preset","preset":1},"G23":{"switch":"preset","preset":2},"G33":{"knob":"color1.h","layer":2,"min":0,"max":255},"G26":{"leds":true},"G32":{"leds":true}}"#
+            link.values[CoreProps.pinStatus.id] = "0304004dff"  // G22 closed, hue knob at 30%
+            link.values[CoreProps.mic.id] = "0"  // frees G23 and G33
+            link.values[CoreProps.preset.id] = "0"  // held by G22
+        case .atomS3Lite:
+            link.values[CoreProps.wiringDocs.id] = #"{"board":"atoms3-lite","pins":["G39","G38","G5","G6","G7","G8","G2","G1"],"analog":["G5","G6","G7","G8","G2","G1"],"led":["G2","G1"],"claims":{},\#(targets)}"#
+            link.values[CoreProps.wiring.id] = #"{"G39":{"button":"nextPreset"},"G38":{"switch":"lightsOff"},"G5":{"switch":"preset","preset":0},"G6":{"switch":"preset","preset":1},"G7":{"switch":"preset","preset":2},"G8":{"switch":"preset","preset":3},"G2":{"leds":true},"G1":{"leds":true}}"#
+            link.values[CoreProps.pinStatus.id] = "010000ffffffffffff"
+        }
+        return link
     }
 }

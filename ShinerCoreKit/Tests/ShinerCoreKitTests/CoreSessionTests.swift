@@ -162,6 +162,53 @@ struct SessionHarness {
         await h.stop()
     }
 
+    @Test func wiringDocsDecodeIntoState() async {
+        let h = await SessionHarness(fake: .demo(board: .atomLite))
+        await settle { h.session.state.wiringDocs != nil }
+        #expect(h.session.state.wiringDocs?.board == "atom-lite")
+        #expect(h.session.state.wiringDocs?.analogPins == ["G33", "G32"])
+        await h.stop()
+    }
+
+    @Test func wiringWriteRereadsOnceOnRevisionChange() async throws {
+        let h = await SessionHarness()
+        await settle { h.session.state[CoreProps.pinStatus] != nil && h.session.state[CoreProps.wiring] != nil }
+        let wiringReads = { h.fake.readRequests.count { $0 == CoreProps.wiring.id } }
+        let before = wiringReads()
+
+        h.fake.inject(.valueChanged(CoreProps.pinStatus.id, "07003c9e"))  // button released, same revision
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(wiringReads() == before, "live pin changes alone don't re-read wiring")
+
+        var wiring = try #require(h.session.state[CoreProps.wiring])
+        wiring["G25"] = .switch(.lightsOn)
+        h.session.set(CoreProps.wiring, to: wiring)
+        await settle { wiringReads() > before }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(wiringReads() == before + 1)
+        #expect(h.session.state[CoreProps.pinStatus]?.revision == 8)
+        await h.stop()
+    }
+
+    @Test func revisionChangeAppliesDeviceWiring() async throws {
+        let h = await SessionHarness()
+        await settle { h.session.state[CoreProps.pinStatus] != nil && h.session.state[CoreProps.wiring] != nil }
+        // The firmware rejected or reset a write: same revision bump, different wiring.
+        h.fake.values[CoreProps.wiring.id] = #"{"G26":{"leds":true}}"#
+        h.fake.inject(.valueChanged(CoreProps.pinStatus.id, "08013c9e"))
+        await settle { h.session.state[CoreProps.wiring] == Wiring(["G26": .leds]) }
+        #expect(h.session.state[CoreProps.wiring] == Wiring(["G26": .leds]))
+        await h.stop()
+    }
+
+    @Test func malformedPinStatusSurfaces() async {
+        let h = await SessionHarness()
+        h.fake.inject(.valueChanged(CoreProps.pinStatus.id, "zz"))
+        await settle { h.session.lastError != nil }
+        #expect(h.session.lastError?.contains("pin status") == true)
+        await h.stop()
+    }
+
     @Test func writeFailureSurfaces() async {
         let h = await SessionHarness()
         h.fake.writeError = CoreLinkError("device said no")
