@@ -1,11 +1,11 @@
 import SwiftUI
 
-// UI prototype for the Inputs tab. Fake data only; the protocol is designed from this.
+// UI prototype for the Wiring tab. Fake data only; the protocol is designed from this.
 
 // MARK: - Model stand-ins
 
 enum ProtoKind: String, CaseIterable, Identifiable {
-    case nothing = "Nothing", toggle = "Switch", button = "Button", knob = "Knob"
+    case nothing = "Nothing", toggle = "Switch", button = "Button", knob = "Knob", leds = "LEDs"
     var id: Self { self }
     var symbol: String {
         switch self {
@@ -13,6 +13,7 @@ enum ProtoKind: String, CaseIterable, Identifiable {
         case .toggle: "switch.2"
         case .button: "button.programmable"
         case .knob: "dial.medium"
+        case .leds: "lightbulb.led"
         }
     }
     var tint: Color {
@@ -21,6 +22,7 @@ enum ProtoKind: String, CaseIterable, Identifiable {
         case .toggle: .blue
         case .button: .purple
         case .knob: .orange
+        case .leds: .pink
         }
     }
 }
@@ -69,6 +71,7 @@ struct ProtoBinding: Equatable {
     var summary: String {
         switch kind {
         case .nothing: return "Not used"
+        case .leds: return "LED strip data"
         case .toggle:
             switch switchAction {
             case .lightsOff: return "Closed: lights off"
@@ -121,43 +124,60 @@ struct ProtoBinding: Equatable {
 struct ProtoPin: Identifiable, Equatable {
     let id: String
     var analog = false
+    var led = false
     var claim: String? = nil
     var binding = ProtoBinding()
     var closed = false
     var position = 0.0
-}
 
-struct ProtoBoard {
-    let name: String
-    let leftHeader: [String]   // top to bottom; which side is which is unverified on hardware
-    let rightHeader: [String]
-    let analogPins: [String]
-    static let groveLabels = ["GND", "5V", "G26", "G32"]
-    static let groveColors: [Color] = [.black, .red, .yellow, .white]
-    static let groveColorNames = ["black", "red", "yellow", "white"]
-
-    static let atomEcho = ProtoBoard(
-        name: "Atom Echo",
-        leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
-        rightHeader: ["G21", "G25", "5V", "GND"],
-        analogPins: ["G32"])
-    static let atomLite = ProtoBoard(
-        name: "Atom Lite",
-        leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
-        rightHeader: ["G21", "G25", "5V", "GND"],
-        analogPins: ["G33", "G32"])
-
-    func location(of label: String) -> String {
-        if !(leftHeader + rightHeader).contains(label), let i = Self.groveLabels.firstIndex(of: label) {
-            return "the \(Self.groveColorNames[i]) wire of the Grove cable"
-        }
-        return "\(label) on the back header"
+    var roles: [ProtoKind] {
+        ProtoKind.allCases.filter { ($0 != .knob || analog) && ($0 != .leds || led) }
     }
 }
 
-// MARK: - Inputs tab
+/// Pin labels as printed on the case.
+struct ProtoBoard {
+    let name: String
+    let leftHeader: [String]   // top to bottom, Grove port facing down
+    let rightHeader: [String]
+    let grove: [String]        // black, red, yellow, white
+    let analogPins: [String]
+    static let groveColors: [Color] = [.black, .red, .yellow, .white]
+    static let groveColorNames = ["black", "red", "yellow", "white"]
 
-struct InputsPrototypeView: View {
+    static let atomLite = ProtoBoard(
+        name: "Atom Lite",
+        leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
+        rightHeader: ["G21", "G25", "5V", "G"],
+        grove: ["G", "5V", "G26", "G32"],
+        analogPins: ["G33", "G32"])
+    static let atomEcho = ProtoBoard(
+        name: "Atom Echo",
+        leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
+        rightHeader: ["G21", "G25", "5V", "G"],
+        grove: ["G", "5V", "G26", "G32"],
+        analogPins: ["G32"])
+    static let atomS3Lite = ProtoBoard(
+        name: "AtomS3 Lite",
+        leftHeader: ["3V3", "G5", "G6", "G7", "G8"],
+        rightHeader: ["G39", "G38", "5V", "G"],
+        grove: ["G", "5V", "G2", "G1"],
+        analogPins: ["G5", "G6", "G7", "G8", "G2", "G1"])
+
+    func isGroveSignal(_ label: String) -> Bool { grove.dropFirst(2).contains(label) }
+
+    func location(of label: String, grove onGrove: Bool) -> String {
+        if onGrove, let i = grove.firstIndex(of: label) {
+            let wire = "the \(Self.groveColorNames[i]) wire of the Grove cable"
+            return isGroveSignal(label) ? "\(wire) (\(label))" : wire
+        }
+        return label == "G" ? "G (ground) on the back header" : "\(label) on the back header"
+    }
+}
+
+// MARK: - Wiring tab
+
+struct WiringPrototypeView: View {
     let board: ProtoBoard
     @State var pins: [ProtoPin]
     @State private var editing: EditTarget?
@@ -171,7 +191,7 @@ struct InputsPrototypeView: View {
                     .frame(height: 200)
                 VStack(spacing: 0) {
                     ForEach(pins) { pin in
-                        InputRow(pin: pin)
+                        PinRow(pin: pin)
                             .contentShape(Rectangle())
                             .onTapGesture { if pin.claim == nil { editing = EditTarget(id: pin.id) } }
                         if pin.id != pins.last?.id { Divider().padding(.leading, 64) }
@@ -179,7 +199,7 @@ struct InputsPrototypeView: View {
                 }
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(8)
-                Text("Wiggle a switch or turn a knob to see which row reacts. Inputs work the same in every preset.")
+                Text("Wiggle a switch or turn a knob to see which row reacts. Wiring is the same in every preset.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -187,7 +207,8 @@ struct InputsPrototypeView: View {
         }
         .sheet(item: $editing) { target in
             if let i = pins.firstIndex(where: { $0.id == target.id }) {
-                InputEditorView(board: board, pin: $pins[i])
+                PinEditorView(board: board, pin: $pins[i],
+                              contextLED: pins.first { $0.binding.kind == .leds && $0.id != target.id }?.id)
             }
         }
     }
@@ -199,7 +220,7 @@ struct InputsPrototypeView: View {
     }
 }
 
-struct InputRow: View {
+struct PinRow: View {
     let pin: ProtoPin
 
     var body: some View {
@@ -235,14 +256,14 @@ struct LiveIndicator: View {
     let pin: ProtoPin
 
     var body: some View {
-        if pin.binding.kind == .knob || (pin.binding.kind == .nothing && pin.analog) {
-            Capsule()
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 56, height: 8)
-                .overlay(alignment: .leading) {
-                    Capsule().fill(Color.orange).frame(width: 56 * pin.position, height: 8)
-                }
-        } else {
+        switch pin.binding.kind {
+        case .leds:
+            EmptyView()
+        case .knob:
+            positionBar
+        case .nothing where pin.analog:
+            positionBar
+        default:
             VStack(spacing: 2) {
                 Circle()
                     .fill(pin.closed ? Color.green : Color.clear)
@@ -254,13 +275,23 @@ struct LiveIndicator: View {
             }
         }
     }
+
+    private var positionBar: some View {
+        Capsule()
+            .fill(Color.gray.opacity(0.3))
+            .frame(width: 56, height: 8)
+            .overlay(alignment: .leading) {
+                Capsule().fill(Color.orange).frame(width: 56 * pin.position, height: 8)
+            }
+    }
 }
 
 // MARK: - Editor
 
-struct InputEditorView: View {
+struct PinEditorView: View {
     let board: ProtoBoard
     @Binding var pin: ProtoPin
+    var contextLED: String? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -268,22 +299,20 @@ struct InputEditorView: View {
             Form {
                 Section {
                     Picker("Wired", selection: $pin.binding.kind) {
-                        ForEach(ProtoKind.allCases.filter { $0 != .knob || pin.analog }) {
-                            Text($0.rawValue).tag($0)
-                        }
+                        ForEach(pin.roles) { Text($0.rawValue).tag($0) }
                     }
                     .pickerStyle(.segmented)
                 } header: {
                     Text("What's wired to \(pin.id)?")
                 } footer: {
                     if !pin.analog {
-                        Text("Knobs only work on \(board.analogPins.joined(separator: " and ")) on the \(board.name).")
+                        Text("Knobs only work on \(board.analogPins.joined(separator: ", ")) on the \(board.name).")
                     }
                 }
 
                 if pin.binding.kind != .nothing {
                     Section("How to wire it") {
-                        WiringDiagramView(board: board, pin: pin.id, kind: pin.binding.kind)
+                        WiringDiagramView(board: board, pin: pin.id, kind: pin.binding.kind, contextLED: contextLED)
                             .frame(height: 340)
                             .listRowInsets(EdgeInsets())
                         WiringSteps(board: board, pin: pin.id, kind: pin.binding.kind)
@@ -292,11 +321,11 @@ struct InputEditorView: View {
 
                 switch pin.binding.kind {
                 case .nothing: EmptyView()
+                case .leds: ledSection
                 case .toggle: switchSection
                 case .button: buttonSection
                 case .knob: knobSections
                 }
-
             }
             .navigationTitle(pin.id)
             .toolbar { Button("Done") { dismiss() } }
@@ -309,6 +338,15 @@ struct InputEditorView: View {
             ForEach(0 ..< (isPreset ? 5 : 10), id: \.self) { Text("\($0)").tag($0) }
         }
         .pickerStyle(.segmented)
+    }
+
+    private var ledSection: some View {
+        Section {
+            Label("Every LED pin shows the same animation. Changing a pin to or from LEDs restarts the core.",
+                  systemImage: "arrow.clockwise")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
     }
 
     @ViewBuilder private var switchSection: some View {
@@ -504,15 +542,16 @@ struct BoardFaceView: View {
     var body: some View {
         Canvas { ctx, size in
             let g = BoardGeometry(board: board, origin: CGPoint(x: (size.width - 140) / 2, y: 8))
-            for i in 0 ..< 4 {
+            for (i, name) in board.grove.enumerated() {
                 let x = g.groveX(i)
                 let path = roundedPolyline([CGPoint(x: x, y: g.groveY - 4), CGPoint(x: x, y: g.groveY + 30)])
-                strokeWire(ctx, path, ProtoBoard.groveColors[i], faded: emphasis[ProtoBoard.groveLabels[i]] == nil)
-                let name = ProtoBoard.groveLabels[i]
-                ctx.draw(label(name, bold: emphasis[name] != nil, color: emphasis[name] ?? .secondary, size: 8),
+                let signal = board.isGroveSignal(name)
+                strokeWire(ctx, path, ProtoBoard.groveColors[i], faded: signal && emphasis[name] == nil)
+                let tint = signal ? emphasis[name] : nil
+                ctx.draw(label(name, bold: tint != nil, color: tint ?? .secondary, size: 8),
                          at: CGPoint(x: x, y: g.groveY + 40))
             }
-            drawBoard(ctx, g, emphasis: emphasis)
+            drawBoard(ctx, g, emphasis: emphasis.filter { !board.isGroveSignal($0.key) })
         }
     }
 }
@@ -520,20 +559,27 @@ struct BoardFaceView: View {
 /// One wire from a board pin to a component leg.
 private struct ProtoWire {
     let from: String
+    let grove: Bool
     let leg: Int
     let legName: String
 }
 
-private func wires(for kind: ProtoKind, pin: String) -> [ProtoWire] {
+private func wires(for kind: ProtoKind, pin: String, on board: ProtoBoard) -> [ProtoWire] {
+    let pinOnGrove = board.isGroveSignal(pin)
     switch kind {
     case .knob:
-        [ProtoWire(from: "GND", leg: 0, legName: "One outer leg"),
-         ProtoWire(from: pin, leg: 1, legName: "Middle leg"),
-         ProtoWire(from: "3V3", leg: 2, legName: "Other outer leg")]
+        return [ProtoWire(from: "G", grove: false, leg: 0, legName: "One outer leg"),
+                ProtoWire(from: pin, grove: pinOnGrove, leg: 1, legName: "Middle leg"),
+                ProtoWire(from: "3V3", grove: false, leg: 2, legName: "Other outer leg")]
     case .toggle, .button:
-        [ProtoWire(from: pin, leg: 0, legName: "One leg"),
-         ProtoWire(from: "GND", leg: 1, legName: "Other leg")]
-    case .nothing: []
+        return [ProtoWire(from: pin, grove: pinOnGrove, leg: 0, legName: "One leg"),
+                ProtoWire(from: "G", grove: false, leg: 1, legName: "Other leg")]
+    case .leds:
+        return [ProtoWire(from: "G", grove: true, leg: 0, legName: "The strip's G (or GND)"),
+                ProtoWire(from: pin, grove: true, leg: 1, legName: "The strip's DIN"),
+                ProtoWire(from: "5V", grove: true, leg: 2, legName: "The strip's 5V")]
+    case .nothing:
+        return []
     }
 }
 
@@ -541,31 +587,37 @@ struct WiringDiagramView: View {
     let board: ProtoBoard
     let pin: String
     let kind: ProtoKind
+    var contextLED: String? = nil
 
     var body: some View {
         Canvas { ctx, size in
             let g = BoardGeometry(board: board, origin: CGPoint(x: (size.width - 140) / 2 - 20, y: 14))
-            let ws = wires(for: kind, pin: pin)
+            let ws = wires(for: kind, pin: pin, on: board)
             let legTipY: CGFloat = 268
             let cx = size.width - 80
-            let legXs: [CGFloat] = kind == .knob ? [cx - 24, cx, cx + 24] : [cx - 14, cx + 14]
+            let legXs: [CGFloat] = kind == .toggle || kind == .button ? [cx - 14, cx + 14] : [cx - 24, cx, cx + 24]
+            var groveUsed = Set(ws.filter(\.grove).map(\.from))
 
-            // The LED strip stays on the Grove cable's black, red and yellow wires.
-            let stripPads: [CGFloat] = [40, 60, 80]
-            for i in 0 ..< 3 {
-                let x = g.groveX(i)
-                let laneY = g.groveY + 18 + CGFloat(i) * 7
-                strokeWire(ctx, roundedPolyline([
-                    CGPoint(x: x, y: g.groveY - 4), CGPoint(x: x, y: laneY),
-                    CGPoint(x: stripPads[i], y: laneY), CGPoint(x: stripPads[i], y: 300),
-                ]), ProtoBoard.groveColors[i], faded: true)
+            // An already-wired LED strip, faded, so the new wires have something to orient by.
+            if kind != .leds, let led = contextLED, let di = board.grove.firstIndex(of: led) {
+                let stripPads: [CGFloat] = [40, 60, 80]
+                for (n, gi) in [0, 1, di].enumerated() {
+                    let x = g.groveX(gi)
+                    let laneY = g.groveY + 18 + CGFloat(n) * 7
+                    strokeWire(ctx, roundedPolyline([
+                        CGPoint(x: x, y: g.groveY - 4), CGPoint(x: x, y: laneY),
+                        CGPoint(x: stripPads[n], y: laneY), CGPoint(x: stripPads[n], y: 300),
+                    ]), ProtoBoard.groveColors[gi], faded: true)
+                    groveUsed.insert(board.grove[gi])
+                }
+                let strip = CGRect(x: 28, y: 300, width: 64, height: 18)
+                ctx.fill(Path(roundedRect: strip, cornerRadius: 3), with: .color(Color(white: 0.85)))
+                ctx.draw(label("LED strip", color: .secondary, size: 8), at: CGPoint(x: strip.midX, y: strip.midY))
             }
-            let strip = CGRect(x: 28, y: 300, width: 64, height: 18)
-            ctx.fill(Path(roundedRect: strip, cornerRadius: 3), with: .color(Color(white: 0.85)))
-            ctx.draw(label("LED strip", color: .secondary, size: 8), at: CGPoint(x: strip.midX, y: strip.midY))
-            if !ws.contains(where: { $0.from == "G32" }) {
-                let x = g.groveX(3)
-                strokeWire(ctx, roundedPolyline([CGPoint(x: x, y: g.groveY - 4), CGPoint(x: x, y: g.groveY + 14)]), .white, faded: true)
+            for (gi, name) in board.grove.enumerated() where !groveUsed.contains(name) {
+                let x = g.groveX(gi)
+                strokeWire(ctx, roundedPolyline([CGPoint(x: x, y: g.groveY - 4), CGPoint(x: x, y: g.groveY + 14)]),
+                           ProtoBoard.groveColors[gi], faded: true)
             }
 
             var used: [String: Color] = [:]
@@ -574,18 +626,17 @@ struct WiringDiagramView: View {
                 let laneY = legTipY - 22 - CGFloat(n) * 9
                 var pts: [CGPoint]
                 var color: Color
-                if let gi = ProtoBoard.groveLabels.firstIndex(of: w.from), w.from != "GND" {
+                if w.grove, let gi = board.grove.firstIndex(of: w.from) {
                     let x = g.groveX(gi)
                     pts = [CGPoint(x: x, y: g.groveY - 4), CGPoint(x: x, y: laneY), CGPoint(x: legTip.x, y: laneY), legTip]
                     color = ProtoBoard.groveColors[gi]
                 } else if let (p, out) = g.hole(w.from) {
                     let outX = out < 0 ? g.rect.minX - 14 - CGFloat(n) * 8 : g.rect.maxX + 14 + CGFloat(n) * 8
                     pts = [p, CGPoint(x: outX, y: p.y), CGPoint(x: outX, y: laneY), CGPoint(x: legTip.x, y: laneY), legTip]
-                    color = w.from == "3V3" ? .orange : w.from == "GND" ? Color(white: 0.2) : .green
+                    color = w.from == "3V3" ? .orange : w.from == "G" ? Color(white: 0.2) : .green
+                    used[w.from] = color
                 } else { continue }
-                if pts.count == 5, abs(pts[2].x - pts[3].x) < 1 { pts.remove(at: 2) }
                 strokeWire(ctx, roundedPolyline(pts), color)
-                used[w.from] = color == .white ? .gray : color
             }
             drawBoard(ctx, g, emphasis: used)
 
@@ -593,6 +644,7 @@ struct WiringDiagramView: View {
             case .knob: drawPot(ctx, cx: cx, legTipY: legTipY, legXs: legXs)
             case .toggle: drawSwitch(ctx, cx: cx, legTipY: legTipY, legXs: legXs)
             case .button: drawButton(ctx, cx: cx, legTipY: legTipY, legXs: legXs)
+            case .leds: drawStrip(ctx, cx: cx, legTipY: legTipY, legXs: legXs)
             case .nothing: break
             }
         }
@@ -633,6 +685,24 @@ struct WiringDiagramView: View {
         ctx.fill(Path(roundedRect: body, cornerRadius: 4), with: .color(Color(white: 0.25)))
         ctx.fill(Path(ellipseIn: CGRect(x: cx - 14, y: body.midY - 14, width: 28, height: 28)), with: .color(.red))
     }
+
+    private func drawStrip(_ ctx: GraphicsContext, cx: CGFloat, legTipY: CGFloat, legXs: [CGFloat]) {
+        let body = CGRect(x: cx - 46, y: legTipY + 8, width: 92, height: 50)
+        ctx.fill(Path(roundedRect: body, cornerRadius: 3), with: .color(Color(white: 0.97)))
+        ctx.stroke(Path(roundedRect: body, cornerRadius: 3), with: .color(.gray), lineWidth: 1)
+        for i in 0 ..< 3 {
+            let led = CGRect(x: body.minX + 10 + CGFloat(i) * 30, y: body.midY + 2, width: 14, height: 14)
+            ctx.fill(Path(roundedRect: led, cornerRadius: 2), with: .color(Color(white: 0.9)))
+            ctx.stroke(Path(roundedRect: led, cornerRadius: 2), with: .color(Color(white: 0.6)), lineWidth: 1)
+        }
+        ctx.draw(label("→ → →", bold: true, color: .pink, size: 10), at: CGPoint(x: body.midX, y: body.maxY + 10))
+        for (x, name) in zip(legXs, ["G", "DIN", "5V"]) {
+            ctx.fill(Path(roundedRect: CGRect(x: x - 7, y: legTipY - 2, width: 14, height: 10), cornerRadius: 2),
+                     with: .color(Color(red: 0.85, green: 0.65, blue: 0.3)))
+            ctx.draw(label(name, size: 7), at: CGPoint(x: x, y: legTipY + 16))
+        }
+    }
+
 }
 
 struct WiringSteps: View {
@@ -642,16 +712,20 @@ struct WiringSteps: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(wires(for: kind, pin: pin).enumerated()), id: \.offset) { n, w in
-                Text("\(n + 1). \(w.legName) → \(board.location(of: w.from)).")
+            ForEach(Array(wires(for: kind, pin: pin, on: board).enumerated()), id: \.offset) { n, w in
+                Text("\(n + 1). \(w.legName) → \(board.location(of: w.from, grove: w.grove)).")
             }
-            if kind == .knob {
+            switch kind {
+            case .knob:
                 Label("Use 3V3, never the red 5V wire: more than 3.3 V on \(pin) can damage the \(board.name).",
                       systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.orange)
-                Text("Turns the wrong way? Swap the outer legs, or tap Reverse above.")
+                Text("Turns the wrong way? Swap the outer legs, or tap Reverse below.")
                     .foregroundStyle(.secondary)
-            } else {
+            case .leds:
+                Text("Connect the end where the strip's arrows point away from the Atom; the other end won't light up.")
+                    .foregroundStyle(.secondary)
+            default:
                 Text("Any \(kind == .button ? "push button" : "on/off switch") works; which leg is which doesn't matter.")
                     .foregroundStyle(.secondary)
             }
@@ -665,10 +739,10 @@ struct WiringSteps: View {
 extension ProtoPin {
     static func echoDemo(position: Double = 0.62) -> [ProtoPin] {
         [
-            ProtoPin(id: "G32", analog: true, binding: ProtoBinding(kind: .knob), position: position),
+            ProtoPin(id: "G26", led: true, binding: ProtoBinding(kind: .leds)),
+            ProtoPin(id: "G32", analog: true, led: true, binding: ProtoBinding(kind: .knob), position: position),
             ProtoPin(id: "G25", binding: ProtoBinding(kind: .toggle)),
             ProtoPin(id: "G21", binding: ProtoBinding(kind: .button), closed: true),
-            ProtoPin(id: "G26", claim: "the LED strip"),
             ProtoPin(id: "G19", claim: "the speaker"),
             ProtoPin(id: "G22", claim: "the speaker"),
             ProtoPin(id: "G23", claim: "the microphone"),
@@ -677,15 +751,26 @@ extension ProtoPin {
     }
 
     static let liteDemo: [ProtoPin] = [
+        ProtoPin(id: "G26", led: true, binding: ProtoBinding(kind: .leds)),
+        ProtoPin(id: "G32", analog: true, led: true, binding: ProtoBinding(kind: .leds)),
         ProtoPin(id: "G33", analog: true,
                  binding: ProtoBinding(kind: .knob, knobParam: .primary, channel: .hue, index: 2), position: 0.3),
-        ProtoPin(id: "G32", analog: true, position: 0.0),
         ProtoPin(id: "G25", binding: ProtoBinding(kind: .toggle)),
         ProtoPin(id: "G21", binding: ProtoBinding(kind: .button)),
         ProtoPin(id: "G22", binding: ProtoBinding(kind: .toggle, switchAction: .preset, index: 0), closed: true),
         ProtoPin(id: "G19", binding: ProtoBinding(kind: .toggle, switchAction: .preset, index: 1)),
         ProtoPin(id: "G23", binding: ProtoBinding(kind: .toggle, switchAction: .preset, index: 2)),
-        ProtoPin(id: "G26", claim: "the LED strip"),
+    ]
+
+    static let s3Demo: [ProtoPin] = [
+        ProtoPin(id: "G2", analog: true, led: true, binding: ProtoBinding(kind: .leds)),
+        ProtoPin(id: "G1", analog: true, led: true, binding: ProtoBinding(kind: .leds)),
+        ProtoPin(id: "G38", binding: ProtoBinding(kind: .toggle)),
+        ProtoPin(id: "G39", binding: ProtoBinding(kind: .button)),
+        ProtoPin(id: "G5", analog: true, binding: ProtoBinding(kind: .toggle, switchAction: .preset, index: 0)),
+        ProtoPin(id: "G6", analog: true, binding: ProtoBinding(kind: .toggle, switchAction: .preset, index: 1)),
+        ProtoPin(id: "G7", analog: true, binding: ProtoBinding(kind: .toggle, switchAction: .preset, index: 2)),
+        ProtoPin(id: "G8", analog: true, binding: ProtoBinding(kind: .toggle, switchAction: .preset, index: 3)),
     ]
 }
 
@@ -698,41 +783,47 @@ private struct TabMock<Content: View>: View {
             Text("Core").tabItem { Label("Core", systemImage: "gearshape") }.tag(1)
             Text("Mesh").tabItem { Label("Mesh", systemImage: "antenna.radiowaves.left.and.right") }.tag(2)
             NavigationStack { content.navigationTitle(title) }
-                .tabItem { Label("Inputs", systemImage: "cable.connector") }.tag(3)
+                .tabItem { Label("Wiring", systemImage: "cable.connector") }.tag(3)
         }
     }
 }
 
-#Preview("Inputs, Atom Echo") {
-    TabMock(title: "Gustav") { InputsPrototypeView(board: .atomEcho, pins: ProtoPin.echoDemo()) }
+#Preview("Wiring, Atom Echo") {
+    TabMock(title: "Gustav") { WiringPrototypeView(board: .atomEcho, pins: ProtoPin.echoDemo()) }
 }
 
-#Preview("Inputs, Atom Lite") {
-    TabMock(title: "Vindarnas hus") { InputsPrototypeView(board: .atomLite, pins: ProtoPin.liteDemo) }
+#Preview("Wiring, Atom Lite") {
+    TabMock(title: "Vindarnas hus") { WiringPrototypeView(board: .atomLite, pins: ProtoPin.liteDemo) }
+}
+
+#Preview("Wiring, AtomS3 Lite") {
+    TabMock(title: "Nevyn") { WiringPrototypeView(board: .atomS3Lite, pins: ProtoPin.s3Demo) }
 }
 
 #Preview("Knob on G32, Echo") {
-    @Previewable @State var pin = ProtoPin.echoDemo()[0]
-    InputEditorView(board: .atomEcho, pin: $pin)
+    @Previewable @State var pin = ProtoPin.echoDemo()[1]
+    PinEditorView(board: .atomEcho, pin: $pin, contextLED: "G26")
 }
 
 #Preview("Hue knob on G33, Lite") {
-    @Previewable @State var pin = ProtoPin.liteDemo[0]
-    InputEditorView(board: .atomLite, pin: $pin)
+    @Previewable @State var pin = ProtoPin.liteDemo[2]
+    PinEditorView(board: .atomLite, pin: $pin, contextLED: "G26")
 }
 
-#Preview("Switch on G25, Echo") {
-    @Previewable @State var pin = ProtoPin.echoDemo()[1]
-    InputEditorView(board: .atomEcho, pin: $pin)
+#Preview("LEDs on G1, S3") {
+    @Previewable @State var pin = ProtoPin.s3Demo[1]
+    PinEditorView(board: .atomS3Lite, pin: $pin, contextLED: "G2")
 }
 
 #Preview("Wiring diagrams") {
     ScrollView {
         VStack(spacing: 24) {
-            WiringDiagramView(board: .atomEcho, pin: "G32", kind: .knob).frame(height: 340)
+            WiringDiagramView(board: .atomEcho, pin: "G32", kind: .knob, contextLED: "G26").frame(height: 340)
             WiringSteps(board: .atomEcho, pin: "G32", kind: .knob)
-            WiringDiagramView(board: .atomLite, pin: "G33", kind: .knob).frame(height: 340)
-            WiringDiagramView(board: .atomEcho, pin: "G25", kind: .toggle).frame(height: 340)
+            WiringDiagramView(board: .atomEcho, pin: "G26", kind: .leds).frame(height: 340)
+            WiringSteps(board: .atomEcho, pin: "G26", kind: .leds)
+            WiringDiagramView(board: .atomS3Lite, pin: "G38", kind: .toggle, contextLED: "G2").frame(height: 340)
+            WiringSteps(board: .atomS3Lite, pin: "G38", kind: .toggle)
         }
         .padding()
     }
