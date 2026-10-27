@@ -2,7 +2,7 @@ import SwiftUI
 import ShinerCoreKit
 
 struct CoreControlsView: View {
-    enum Tab: String, CaseIterable { case animation, core, mesh }
+    enum Tab: String, CaseIterable { case animation, core, mesh, wiring }
 
     let session: CoreSession
     @State private var tab: Tab
@@ -28,6 +28,10 @@ struct CoreControlsView: View {
                 .disabled(session.connection != .connected)
                 .tabItem { Label("Mesh", systemImage: "antenna.radiowaves.left.and.right") }
                 .tag(Tab.mesh)
+            WiringView(session: session)
+                .disabled(session.connection != .connected)
+                .tabItem { Label("Wiring", systemImage: "cable.connector") }
+                .tag(Tab.wiring)
         }
         .safeAreaInset(edge: .top, spacing: 0) { banner }
     }

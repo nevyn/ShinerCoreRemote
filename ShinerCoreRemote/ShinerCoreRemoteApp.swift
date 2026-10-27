@@ -24,7 +24,7 @@ struct MyApp: App {
 /// looking at is reachable by argument alone — no tapping — which is what
 /// lets Scripts/screenshots.sh capture the whole set unattended.
 enum DemoMode: Equatable {
-    /// `-demo`, or `-demo-tab animation|core|mesh`
+    /// `-demo`, or `-demo-tab animation|core|mesh|wiring`
     case controls(CoreControlsView.Tab)
     /// `-demo-offline`: connected UI in its reconnecting state
     case offline
