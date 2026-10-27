@@ -1,17 +1,20 @@
 #!/bin/bash
 # Capture the App Store / README screenshot set, unattended.
 #
-#   Scripts/screenshots.sh [iphone|ipad|all]   (default: all)
+#   Scripts/screenshots.sh [iphone|iphone-large|ipad|all]   (default: all)
 #
 # Every shot is "launch with a -demo argument, then capture" — no taps, so
-# nothing breaks when a control moves. Both simulators are exact matches for
-# the pixel sizes App Store Connect accepts (asc screenshots sizes).
+# nothing breaks when a control moves. Each simulator is an exact match for
+# the pixel sizes App Store Connect accepts (asc screenshots sizes --all).
 #
 # iPhone and iPad are the whole story: on the Mac this ships as the iPad app,
 # so there is no macOS listing and no separate Mac screenshots to take.
 #
-# Upload (only onto a PREPARE_FOR_SUBMISSION version, and never without
-# checking what is already there — `asc screenshots download` first):
+# Upload onto a PREPARE_FOR_SUBMISSION version only, and list what is already
+# there first (`asc screenshots list`; its JSON is .sets[].screenshots[], not
+# .data[]). An upload can report failure after the bytes landed, so let the
+# listing decide whether to retry — and order follows upload order, with no
+# way to reorder afterwards:
 #   LOC=$(asc localizations list --version <VERSION_ID> | ...)
 #   asc screenshots upload --version-localization "$LOC" \
 #       --path screenshots/APP_IPHONE_67/3-core.png --device-type IPHONE_67
@@ -35,9 +38,14 @@ SHOTS=(
 )
 
 # Simulator name : ASC display type. `asc screenshots sizes --all` lists which
-# pixel sizes each display type accepts; these two devices are native matches
-# (iPhone Air 1260x2736, iPad Pro 13" 2064x2752).
+# pixel sizes each display type accepts; each device here is a native match.
+#
+# App Store Connect requires the iPhone "medium display" slot (APP_IPHONE_61,
+# 1206x2622) and the 13" iPad; the "large display" 6.9" slot is optional. Fill
+# the required ones first — a listing with only the optional slot filled cannot
+# be submitted.
 SIMS=(
+  "iPhone 17 Pro:APP_IPHONE_61"
   "iPhone Air:APP_IPHONE_67"
   "iPad Pro 13-inch (M5):APP_IPAD_PRO_3GEN_129"
 )
@@ -82,10 +90,11 @@ capture_sim() {
 }
 
 case "$WHICH" in
-  iphone) capture_sim "iPhone Air" APP_IPHONE_67 ;;
-  ipad)   capture_sim "iPad Pro 13-inch (M5)" APP_IPAD_PRO_3GEN_129 ;;
-  all)    for sim in "${SIMS[@]}"; do capture_sim "${sim%%:*}" "${sim##*:}"; done ;;
-  *) echo "usage: $0 [iphone|ipad|all]" >&2; exit 2 ;;
+  iphone)       capture_sim "iPhone 17 Pro" APP_IPHONE_61 ;;
+  iphone-large) capture_sim "iPhone Air" APP_IPHONE_67 ;;
+  ipad)         capture_sim "iPad Pro 13-inch (M5)" APP_IPAD_PRO_3GEN_129 ;;
+  all)          for sim in "${SIMS[@]}"; do capture_sim "${sim%%:*}" "${sim##*:}"; done ;;
+  *) echo "usage: $0 [iphone|iphone-large|ipad|all]" >&2; exit 2 ;;
 esac
 
 say "Sizes (must match asc screenshots sizes --all):"
