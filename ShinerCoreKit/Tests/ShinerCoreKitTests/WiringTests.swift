@@ -58,6 +58,13 @@ enum WiringFixtures {
         #expect(wiring.json == json)
     }
 
+    @Test func absentFrontButtonActsAsNextPreset() throws {
+        let docs = try WiringDocs(json: WiringFixtures.echoDocs)
+        #expect(Wiring().role(of: "G39", docs: docs) == .button(.nextPreset))
+        #expect(Wiring(["G39": .button(.toggleLights)]).role(of: "G39", docs: docs) == .button(.toggleLights))
+        #expect(Wiring().role(of: "G21", docs: docs) == nil)
+    }
+
     @Test func contractExampleDecodes() throws {
         let wiring = try Wiring(json: WiringFixtures.example)
         #expect(wiring == Wiring([

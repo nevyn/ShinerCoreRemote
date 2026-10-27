@@ -3,6 +3,7 @@ import ShinerCoreKit
 
 /// Edits one pin's role. Every change writes the whole wiring through
 /// `session.set`; a change to or from LEDs asks first, because it restarts the core.
+/// The front button only picks a button action.
 struct PinEditorView: View {
     let session: CoreSession
     let pin: String
@@ -17,10 +18,11 @@ struct PinEditorView: View {
         self.session = session
         self.pin = pin
         self.docs = docs
-        _draft = State(initialValue: RoleDraft(session.state[CoreProps.wiring]?[pin]))
+        _draft = State(initialValue: RoleDraft(session.state[CoreProps.wiring]?.role(of: pin, docs: docs)))
     }
 
-    private var storedRole: PinRole? { session.state[CoreProps.wiring]?[pin] }
+    private var storedRole: PinRole? { session.state[CoreProps.wiring]?.role(of: pin, docs: docs) }
+    private var isFrontButton: Bool { pin == docs.frontButton }
     private var layout: BoardLayout? { BoardLayout(board: docs.board) }
     private var boardName: String { layout?.name ?? docs.board }
     private var params: [KnobParam] { KnobParam.allCases.filter { !$0.targets(in: docs).isEmpty } }
@@ -46,40 +48,13 @@ struct PinEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("Wired", selection: kindBinding) {
-                        ForEach(kinds) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                } header: {
-                    Text("What's wired to \(pin)?")
-                } footer: {
-                    if !docs.analog.contains(pin), !docs.analogPins.isEmpty {
-                        Text("Knobs only work on \(docs.analogPins.joined(separator: ", ")) on the \(boardName).")
-                    }
-                }
-
-                if draft.kind != .nothing {
-                    Section("How to wire it") {
-                        if let layout {
-                            WiringDiagramView(board: layout, pin: pin, kind: draft.kind, contextLED: contextLED)
-                                .frame(height: 340)
-                                .listRowInsets(EdgeInsets())
-                                .accessibilityHidden(true)
-                        }
-                        WiringSteps(layout: layout, boardName: boardName, pin: pin, kind: draft.kind)
-                    }
-                }
-
-                switch draft.kind {
-                case .nothing: EmptyView()
-                case .leds: ledSection
-                case .switch: switchSection
-                case .button: buttonSection
-                case .knob: knobSections
+                if isFrontButton {
+                    buttonSection
+                } else {
+                    pinSections
                 }
             }
-            .navigationTitle(pin)
+            .navigationTitle(isFrontButton ? "Front button" : pin)
             .toolbar { Button("Done") { dismiss() } }
             .confirmationDialog("Changing LED pins restarts the core",
                                 isPresented: Binding(get: { pendingLEDKind != nil },
@@ -95,15 +70,49 @@ struct PinEditorView: View {
         }
     }
 
+    @ViewBuilder private var pinSections: some View {
+        Section {
+            Picker("Wired", selection: kindBinding) {
+                ForEach(kinds) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        } header: {
+            Text("What's wired to \(pin)?")
+        } footer: {
+            if !docs.analog.contains(pin), !docs.analogPins.isEmpty {
+                Text("Knobs only work on \(docs.analogPins.joined(separator: ", ")) on the \(boardName).")
+            }
+        }
+
+        if draft.kind != .nothing {
+            Section("How to wire it") {
+                if let layout {
+                    WiringDiagramView(board: layout, pin: pin, kind: draft.kind, contextLED: contextLED)
+                        .frame(height: 340)
+                        .listRowInsets(EdgeInsets())
+                        .accessibilityHidden(true)
+                }
+                WiringSteps(layout: layout, boardName: boardName, pin: pin, kind: draft.kind)
+            }
+        }
+
+        switch draft.kind {
+        case .nothing: EmptyView()
+        case .leds: ledSection
+        case .switch: switchSection
+        case .button: buttonSection
+        case .knob: knobSections
+        }
+    }
+
     private func commit() {
         if draft.indexIsPreset, draft.index > 4 {
             draft.index = 4  // re-enters commit through onChange
             return
         }
-        guard var wiring = session.state[CoreProps.wiring] else { return }
-        let before = wiring
+        guard var wiring = session.state[CoreProps.wiring], draft.role != wiring.role(of: pin, docs: docs) else { return }
         wiring[pin] = draft.role
-        if wiring != before { session.set(CoreProps.wiring, to: wiring) }
+        session.set(CoreProps.wiring, to: wiring)
     }
 
     private var kindBinding: Binding<RoleKind> {
@@ -159,9 +168,11 @@ struct PinEditorView: View {
             }
             if draft.buttonAction.needsIndex { indexPicker(isPreset: draft.buttonAction == .preset) }
         } footer: {
-            if draft.buttonAction == .nextPreset {
-                Text("Hold for half a second to turn the lights on or off.")
-            }
+            let notes = [
+                draft.buttonAction == .nextPreset ? "Hold for half a second to turn the lights on or off." : nil,
+                isFrontButton ? "This is the button on the face of the core, so it needs no wiring. Holding it while the core starts clears all settings." : nil,
+            ].compactMap { $0 }
+            if !notes.isEmpty { Text(notes.joined(separator: " ")) }
         }
     }
 
@@ -523,5 +534,6 @@ private struct EditorPreview: View {
 #Preview("Hue knob on G33, Lite") { EditorPreview(board: .atomLite, pin: "G33") }
 #Preview("Switch on G22, Lite") { EditorPreview(board: .atomLite, pin: "G22") }
 #Preview("Button on G21, Echo") { EditorPreview(board: .atomEcho, pin: "G21") }
+#Preview("Front button, unset, Echo") { EditorPreview(board: .atomEcho, pin: "G39") { $0["G39"] = nil } }
 #Preview("LEDs on G1, S3") { EditorPreview(board: .atomS3Lite, pin: "G1") }
 #Preview("Nothing on G8, S3") { EditorPreview(board: .atomS3Lite, pin: "G8") { $0["G8"] = nil } }

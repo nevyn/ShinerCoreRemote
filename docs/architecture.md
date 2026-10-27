@@ -80,8 +80,8 @@ firmware's [docs/wiring.md](https://github.com/nevyn/shinercore/blob/main/docs/w
 Three properties carry it:
 
 * `wiringDocs` (read once) decodes into `CoreState.wiringDocs`: the board id, its
-  pins in status bit order, which can be knobs or LEDs, which hardware can claim,
-  and the knob targets.
+  pins in status bit order, the front button's label, which pins can be knobs or
+  LEDs, which hardware can claim, and the knob targets.
 * `wiring` decodes into `Wiring` (pin label → `PinRole`). The editor writes the
   whole value through `set`.
 * `pinStatus` notifies live pin state as hex: a revision, closed and claimed
@@ -95,6 +95,12 @@ corrects the optimistic value after the firmware rejects a write.
 The firmware publishes what each pin can do; the app owns only the board layout
 (header drawing, Grove labels and wire colors in `WiringDiagram.swift`), keyed by
 board id. An unknown board id gets the pin list without the drawing.
+
+The front button on the face of the case is a wiring key like any pin, but its
+only role is button, `pinStatus` doesn't report it, and an absent key means
+`nextPreset` (`Wiring.role(of:docs:)`). Its row has no live indicator, and its
+editor offers only the button action. Firmware that predates it omits it from
+`wiringDocs`, and the tab shows no row.
 
 Closed switches hold the lights or a preset (`CoreState.lightsHold`,
 `presetHold`); the Core and Animation tabs name the holding switch and disable
