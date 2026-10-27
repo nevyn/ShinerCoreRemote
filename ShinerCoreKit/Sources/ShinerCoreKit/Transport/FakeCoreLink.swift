@@ -144,18 +144,18 @@ public final class FakeCoreLink: CoreLink {
         let atomPins = #""pins":["G21","G25","G22","G19","G23","G33","G26","G32"]"#
         switch board {
         case .atomEcho:
-            link.values[CoreProps.wiringDocs.id] = #"{"board":"atom-echo",\#(atomPins),"analog":["G32"],"led":["G26","G32"],"claims":{"G19":"speaker","G22":"speaker","G23":"microphone","G33":"microphone"},\#(targets)}"#
-            link.values[CoreProps.wiring.id] = #"{"G21":{"button":"nextPreset"},"G25":{"switch":"lightsOff"},"G26":{"leds":true},"G32":{"knob":"brightness","min":0,"max":255}}"#
+            link.values[CoreProps.wiringDocs.id] = #"{"board":"atom-echo",\#(atomPins),"frontButton":"G39","analog":["G32"],"led":["G26","G32"],"claims":{"G19":"speaker","G22":"speaker","G23":"microphone","G33":"microphone"},\#(targets)}"#
+            link.values[CoreProps.wiring.id] = #"{"G21":{"button":"nextPreset"},"G25":{"switch":"lightsOff"},"G26":{"leds":true},"G32":{"knob":"brightness","min":0,"max":255},"G39":{"button":"nextPreset"}}"#
             link.values[CoreProps.pinStatus.id] = "07013c9e"  // G21 pressed, knob at 62%
         case .atomLite:
-            link.values[CoreProps.wiringDocs.id] = #"{"board":"atom-lite",\#(atomPins),"analog":["G33","G32"],"led":["G26","G32"],"claims":{"G23":"microphone","G33":"microphone"},\#(targets)}"#
-            link.values[CoreProps.wiring.id] = #"{"G21":{"button":"nextPreset"},"G25":{"switch":"lightsOff"},"G22":{"switch":"preset","preset":0},"G19":{"switch":"preset","preset":1},"G23":{"switch":"preset","preset":2},"G33":{"knob":"color1.h","layer":2,"min":0,"max":255},"G26":{"leds":true},"G32":{"leds":true}}"#
+            link.values[CoreProps.wiringDocs.id] = #"{"board":"atom-lite",\#(atomPins),"frontButton":"G39","analog":["G33","G32"],"led":["G26","G32"],"claims":{"G23":"microphone","G33":"microphone"},\#(targets)}"#
+            link.values[CoreProps.wiring.id] = #"{"G21":{"button":"nextPreset"},"G25":{"switch":"lightsOff"},"G22":{"switch":"preset","preset":0},"G19":{"switch":"preset","preset":1},"G23":{"switch":"preset","preset":2},"G33":{"knob":"color1.h","layer":2,"min":0,"max":255},"G26":{"leds":true},"G32":{"leds":true},"G39":{"button":"toggleLights"}}"#
             link.values[CoreProps.pinStatus.id] = "0304004dff"  // G22 closed, hue knob at 30%
             link.values[CoreProps.mic.id] = "0"  // frees G23 and G33
             link.values[CoreProps.preset.id] = "0"  // held by G22
         case .atomS3Lite:
-            link.values[CoreProps.wiringDocs.id] = #"{"board":"atoms3-lite","pins":["G39","G38","G5","G6","G7","G8","G2","G1"],"analog":["G5","G6","G7","G8","G2","G1"],"led":["G2","G1"],"claims":{},\#(targets)}"#
-            link.values[CoreProps.wiring.id] = #"{"G39":{"button":"nextPreset"},"G38":{"switch":"lightsOff"},"G5":{"switch":"preset","preset":0},"G6":{"switch":"preset","preset":1},"G7":{"switch":"preset","preset":2},"G8":{"switch":"preset","preset":3},"G2":{"leds":true},"G1":{"leds":true}}"#
+            link.values[CoreProps.wiringDocs.id] = #"{"board":"atoms3-lite","pins":["G39","G38","G5","G6","G7","G8","G2","G1"],"frontButton":"G41","analog":["G5","G6","G7","G8","G2","G1"],"led":["G2","G1"],"claims":{},\#(targets)}"#
+            link.values[CoreProps.wiring.id] = #"{"G39":{"button":"nextPreset"},"G38":{"switch":"lightsOff"},"G5":{"switch":"preset","preset":0},"G6":{"switch":"preset","preset":1},"G7":{"switch":"preset","preset":2},"G8":{"switch":"preset","preset":3},"G2":{"leds":true},"G1":{"leds":true},"G41":{"button":"nextPreset"}}"#
             link.values[CoreProps.pinStatus.id] = "010000ffffffffffff"
         }
         return link

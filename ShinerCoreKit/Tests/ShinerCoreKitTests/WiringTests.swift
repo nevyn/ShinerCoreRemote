@@ -6,6 +6,7 @@ enum WiringFixtures {
     static let echoDocs = #"""
         {"board":"atom-echo",
          "pins":["G21","G25","G22","G19","G23","G33","G26","G32"],
+         "frontButton":"G39",
          "analog":["G32"],
          "led":["G26","G32"],
          "claims":{"G19":"speaker","G22":"speaker","G23":"microphone","G33":"microphone"},
@@ -48,6 +49,13 @@ enum WiringFixtures {
         let wiring = try Wiring(json: json)
         #expect(wiring == expected)
         #expect(try Wiring(json: wiring.json) == wiring)
+    }
+
+    @Test func frontButtonRoundTrips() throws {
+        let json = #"{"G21":{"button":"nextPreset"},"G26":{"leds":true},"G39":{"button":"toggleLayer","layer":3}}"#
+        let wiring = try Wiring(json: json)
+        #expect(wiring["G39"] == .button(.toggleLayer(3)))
+        #expect(wiring.json == json)
     }
 
     @Test func contractExampleDecodes() throws {
@@ -127,11 +135,26 @@ enum WiringFixtures {
         let docs = try WiringDocs(json: WiringFixtures.echoDocs)
         #expect(docs.board == "atom-echo")
         #expect(docs.pins == ["G21", "G25", "G22", "G19", "G23", "G33", "G26", "G32"])
+        #expect(docs.frontButton == "G39")
         #expect(docs.analog == ["G32"])
         #expect(docs.led == ["G26", "G32"])
         #expect(docs.claims["G19"] == "speaker")
         #expect(docs.targets.count == 16)
         #expect(docs.targets.contains(.color(.secondary, .value)))
+    }
+
+    @Test func frontButtonIsAbsentFromOlderFirmware() throws {
+        #expect(try WiringDocs(json: WiringFixtures.liteDocs).frontButton == nil)
+    }
+
+    @Test(arguments: [
+        (#""frontButton":"G1""#, WiringError.malformed("wiringDocs lists front button G1 among the pins")),
+        (#""frontButton":"G 39""#, WiringError.unknownPin("G 39")),
+    ])
+    func rejectsBadFrontButton(field: String, error: WiringError) {
+        #expect(throws: error) {
+            try WiringDocs(json: #"{"board":"x","pins":["G1"],\#(field),"analog":[],"led":[],"claims":{},"targets":[]}"#)
+        }
     }
 
     @Test func skipsUnknownTargets() throws {
