@@ -9,6 +9,8 @@ public struct CoreState: Equatable, Sendable {
     public var available: Set<PropertyID> = []
     /// Decoded once when the documentation property arrives.
     public var documentation: Documentation?
+    /// Decoded once when the wiringDocs property arrives.
+    public var wiringDocs: WiringDocs?
 
     public init() {}
 
