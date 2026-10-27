@@ -67,11 +67,38 @@ the ack. Errors land in `lastError`, rendered by the UI, dismissible.
 
 `CoreListView` (browser + scan lifecycle) → `CoreDetailView` (owns the
 session via `.task(id:)`, re-reads on scenePhase reactivation) →
-`CoreControlsView` (Animation/Core tabs, connection banner, disables
+`CoreControlsView` (Animation/Core/Mesh/Wiring tabs, connection banner, disables
 everything while not connected). Prop boxes take `(session, key)` and stay
 in the layout even when unavailable — dimmed via `.availability(of:in:)` —
 because structural stability is what keeps scrolling from jumping while
 characteristic reads trickle in.
+
+## Wiring
+
+The Wiring tab edits the core's wiring: a map from pin to role, defined by the
+firmware's [docs/wiring.md](https://github.com/nevyn/shinercore/blob/main/docs/wiring.md).
+Three properties carry it:
+
+* `wiringDocs` (read once) decodes into `CoreState.wiringDocs`: the board id, its
+  pins in status bit order, which can be knobs or LEDs, which hardware can claim,
+  and the knob targets.
+* `wiring` decodes into `Wiring` (pin label → `PinRole`). The editor writes the
+  whole value through `set`.
+* `pinStatus` notifies live pin state as hex: a revision, closed and claimed
+  bitmasks, and knob positions.
+
+`wiring` is too long for a notification (ArduinoBLE caps them at 20 bytes), so it
+has no notify. Every `wiring` write bumps the pinStatus revision instead, and the
+session re-reads `wiring` whenever it sees a new revision. That read-back also
+corrects the optimistic value after the firmware rejects a write.
+
+The firmware publishes what each pin can do; the app owns only the board layout
+(header drawing, Grove labels and wire colors in `WiringDiagram.swift`), keyed by
+board id. An unknown board id gets the pin list without the drawing.
+
+Closed switches hold the lights or a preset (`CoreState.lightsHold`,
+`presetHold`); the Core and Animation tabs name the holding switch and disable
+the control, because the firmware would undo any write.
 
 ## Notifications
 
