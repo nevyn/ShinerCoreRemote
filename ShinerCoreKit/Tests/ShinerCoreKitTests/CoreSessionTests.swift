@@ -190,6 +190,34 @@ struct SessionHarness {
         await h.stop()
     }
 
+    @Test func rejectedWiringWriteSurfacesAnError() async throws {
+        let h = await SessionHarness()
+        await settle { h.session.state[CoreProps.pinStatus] != nil && h.session.state[CoreProps.wiring] != nil }
+        let original = try #require(h.session.state[CoreProps.wiring])
+        h.fake.rejectWiringWrites = true
+        var wiring = original
+        wiring["G25"] = .switch(.lightsOn)
+        h.session.set(CoreProps.wiring, to: wiring)
+        await settle { h.session.lastError != nil }
+        #expect(h.session.lastError?.contains("rejected") == true)
+        #expect(h.session.state[CoreProps.wiring] == original)
+        await h.stop()
+    }
+
+    @Test func acceptedWiringWriteRaisesNoError() async throws {
+        let h = await SessionHarness()
+        await settle { h.session.state[CoreProps.pinStatus] != nil && h.session.state[CoreProps.wiring] != nil }
+        let reads = h.fake.readRequests.count
+        var wiring = try #require(h.session.state[CoreProps.wiring])
+        wiring["G25"] = .switch(.lightsOn)
+        h.session.set(CoreProps.wiring, to: wiring)
+        await settle { h.fake.readRequests.count > reads }
+        await settle(timeout: .milliseconds(200)) { false }  // let the read-back land
+        #expect(h.session.lastError == nil)
+        #expect(h.session.state[CoreProps.wiring] == wiring)
+        await h.stop()
+    }
+
     @Test func revisionChangeAppliesDeviceWiring() async throws {
         let h = await SessionHarness()
         await settle { h.session.state[CoreProps.pinStatus] != nil && h.session.state[CoreProps.wiring] != nil }

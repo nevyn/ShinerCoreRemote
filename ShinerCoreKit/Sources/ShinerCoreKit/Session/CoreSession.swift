@@ -34,6 +34,8 @@ public final class CoreSession {
     /// The pinStatus revision of the wiring last read; nil until the first
     /// pinStatus after connecting, whose wiring the connect refresh reads.
     @ObservationIgnored private var wiringRevision: UInt8?
+    /// The wiring last written, until the device's wiring is next read back.
+    @ObservationIgnored private var expectedWiring: Wiring?
 
     public init(link: any CoreLink, throttle: Duration = .milliseconds(100)) {
         self.link = link
@@ -77,6 +79,7 @@ public final class CoreSession {
             let wasDirty = dirty.contains(id)  // before finishRead may settle it
             finishRead(of: id)
             guard !wasDirty else { return }  // stale; the acked optimistic value stands
+            if id == CoreProps.wiring.id { confirmWiringWrite(raw) }
             applyDeviceValue(id, raw)
         case .valueChanged(let id, let raw):
             // A notification: another central, cursor fanout, or our own
@@ -127,6 +130,16 @@ public final class CoreSession {
         }
     }
 
+    /// The firmware rejects invalid wiring silently, keeping its own; the
+    /// read-back after a write is the only place that shows.
+    private func confirmWiringWrite(_ raw: String) {
+        guard let expected = expectedWiring else { return }
+        expectedWiring = nil
+        if WiringConverter.convert(raw) != expected {
+            lastError = "The core rejected that wiring change and kept its previous wiring."
+        }
+    }
+
     /// Re-reads every property. Call on return to foreground: the link may
     /// have survived, but the device state may not have.
     public func refresh() {
@@ -171,6 +184,7 @@ public final class CoreSession {
             guard connection == .connected, let raw = state.raw[id] else { break }
             do {
                 try await link.write(raw, to: id)
+                if id == CoreProps.wiring.id { expectedWiring = WiringConverter.convert(raw) }
             } catch {
                 lastError = "Couldn't set \(name): \(error.localizedDescription)"
                 break

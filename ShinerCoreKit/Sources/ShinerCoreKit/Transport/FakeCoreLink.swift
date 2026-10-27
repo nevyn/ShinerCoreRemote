@@ -25,6 +25,9 @@ public final class FakeCoreLink: CoreLink {
     /// capturing the value at request time — models the device answering
     /// serially, so a response can be stale by the time it arrives.
     public var deferReads = false
+    /// When true, `wiring` writes are acked but leave the stored wiring as
+    /// it was, like the firmware rejecting an invalid wiring.
+    public var rejectWiringWrites = false
     private var pendingConnect = false
     private var deferredReads: [(id: PropertyID, raw: String?)] = []
 
@@ -69,7 +72,7 @@ public final class FakeCoreLink: CoreLink {
         if let writeError { throw writeError }
         guard reachable else { throw CoreLinkError("Disconnected") }
         written.append((id, raw))
-        values[id] = raw
+        if !(id == CoreProps.wiring.id && rejectWiringWrites) { values[id] = raw }
         if id == CoreProps.wiring.id, let status = values[CoreProps.pinStatus.id].flatMap(PinStatusConverter.convert) {
             let bumped = PinStatus(revision: status.revision &+ 1, closed: status.closed,
                                    claimed: status.claimed, positions: status.positions).hex
