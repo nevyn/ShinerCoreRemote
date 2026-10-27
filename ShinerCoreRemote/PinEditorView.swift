@@ -54,6 +54,7 @@ struct PinEditorView: View {
                     pinSections
                 }
             }
+            .formStyle(.grouped) // macOS defaults to .columns: inline headers, no section padding
             .navigationTitle(isFrontButton ? "Front button" : pin)
             .toolbar { Button("Done") { dismiss() } }
             .confirmationDialog("Changing LED pins restarts the core",
@@ -76,6 +77,7 @@ struct PinEditorView: View {
                 ForEach(kinds) { Text($0.rawValue).tag($0) }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
         } header: {
             Text("What's wired to \(pin)?")
         } footer: {
