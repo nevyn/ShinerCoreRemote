@@ -88,7 +88,9 @@ hand-edit the pbxproj to add files.
   (controls, connected fake), `-demo-tab animation|core|mesh|wiring` (a specific tab),
   `-demo-offline` (reconnecting state), or `-demo-list` (the discovery list), then
   `xcrun simctl io booted screenshot`. Every screen is reachable by argument alone —
-  keep it that way when adding screens, it's what makes captures tap-free.
+  keep it that way when adding screens, it's what makes captures tap-free. A new tab
+  needs an entry in `SHOTS` in Scripts/screenshots.sh too, or the store listing keeps
+  showing the app without it.
 * **The whole screenshot set**: `Scripts/screenshots.sh [iphone|ipad|all]` builds,
   boots, launches each demo argument and captures into `screenshots/<ASC display type>/`
   at the exact pixel sizes App Store Connect accepts. Upload deliberately, never

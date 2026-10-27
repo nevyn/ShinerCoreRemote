@@ -31,6 +31,7 @@ SHOTS=(
   "2-animation:-demo-tab animation"
   "3-core:-demo-tab core"
   "4-mesh:-demo-tab mesh"
+  "5-wiring:-demo-tab wiring"
 )
 
 # Simulator name : ASC display type. `asc screenshots sizes --all` lists which
