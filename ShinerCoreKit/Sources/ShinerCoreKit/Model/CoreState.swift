@@ -26,3 +26,17 @@ public struct CoreState: Equatable, Sendable {
         raw[key.id]
     }
 }
+
+public extension CoreState {
+    /// The closed switch that holds the lights on or off right now, if any.
+    var lightsHold: (pin: String, on: Bool)? {
+        guard let docs = wiringDocs, let wiring = self[CoreProps.wiring], let status = self[CoreProps.pinStatus] else { return nil }
+        return wiring.lightsHold(docs: docs, status: status)
+    }
+
+    /// The closed switch that holds a preset right now, if any.
+    var presetHold: (pin: String, preset: Int)? {
+        guard let docs = wiringDocs, let wiring = self[CoreProps.wiring], let status = self[CoreProps.pinStatus] else { return nil }
+        return wiring.presetHold(docs: docs, status: status)
+    }
+}

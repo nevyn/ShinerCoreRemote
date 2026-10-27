@@ -79,7 +79,8 @@ struct AnimationSettingsView: View {
             VStack(spacing: 16) {
                 PickerRow(
                     title: "Preset", count: 5,
-                    key: CoreProps.preset, session: session)
+                    key: CoreProps.preset, session: session,
+                    heldBy: session.state.presetHold?.pin)
                 PickerRow(
                     title: "Layer", count: 10,
                     key: CoreProps.layer, session: session)
@@ -122,7 +123,8 @@ struct CoreSettingsView: View {
             VStack(spacing: 16) {
                 Grid(horizontalSpacing: 16, verticalSpacing: 16) {
                     GridRow {
-                        ToggleBox(title: "Lights on", session: session, key: CoreProps.mode)
+                        ToggleBox(title: "Lights on", session: session, key: CoreProps.mode,
+                                  heldBy: session.state.lightsHold?.pin)
                         NameBox(title: "Owner's name", session: session, key: CoreProps.name,
                                 alertTitle: "Change core's name",
                                 prompt: "Enter your name",
@@ -184,19 +186,25 @@ struct PickerRow: View {
     let count: Int
     let key: PropertyKey<IntConverter>
     let session: CoreSession
+    /// The pin of a closed switch that holds this value; disables the picker.
+    var heldBy: String?
 
     var body: some View {
-        HStack {
-            Text(title + ":").font(.headline)
-            Picker(title, selection: Binding(
-                get: { session.state[key] ?? 0 },
-                set: { session.select(key, $0) }
-            )) {
-                ForEach(0..<count, id: \.self) {
-                    Text($0.description).tag($0)
+        VStack {
+            HStack {
+                Text(title + ":").font(.headline)
+                Picker(title, selection: Binding(
+                    get: { session.state[key] ?? 0 },
+                    set: { session.select(key, $0) }
+                )) {
+                    ForEach(0..<count, id: \.self) {
+                        Text($0.description).tag($0)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .disabled(heldBy != nil)
             }
-            .pickerStyle(.segmented)
+            HeldCaption(pin: heldBy)
         }
         .availability(of: key, in: session)
     }
@@ -206,6 +214,19 @@ struct PickerRow: View {
     let session = CoreSession(link: FakeCoreLink.demo())
     NavigationStack {
         CoreControlsView(session: session)
+            .navigationTitle("Vindarnas hus")
+    }
+    .task { await session.run() }
+}
+
+/// The Atom Lite demo's G22 switch also holds preset 0 on the Animation tab.
+#Preview("Held by switches") {
+    let link = FakeCoreLink.demo(board: .atomLite)
+    link.values[CoreProps.pinStatus.id] = "0306004dff"  // G25 and G22 closed
+    link.values[CoreProps.mode.id] = "0"
+    let session = CoreSession(link: link)
+    return NavigationStack {
+        CoreControlsView(session: session, tab: .core)
             .navigationTitle("Vindarnas hus")
     }
     .task { await session.run() }
