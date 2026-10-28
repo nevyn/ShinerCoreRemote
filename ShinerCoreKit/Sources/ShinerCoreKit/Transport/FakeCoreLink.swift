@@ -127,6 +127,7 @@ public final class FakeCoreLink: CoreLink {
             CoreProps.phi.id: "0.5",
             CoreProps.layer.id: "0",
             CoreProps.preset.id: "1",
+            CoreProps.bootPreset.id: "0",
             CoreProps.animation.id: "rainbow",
             CoreProps.beatSync.id: "0",
             CoreProps.blendMode.id: "add",
