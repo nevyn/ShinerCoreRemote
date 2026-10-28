@@ -93,13 +93,10 @@ hand-edit the pbxproj to add files.
   showing the app without it.
 * **The whole screenshot set**: `Scripts/screenshots.sh [iphone|ipad|all]` builds,
   boots, launches each demo argument and captures into `screenshots/<ASC display type>/`
-  at the exact pixel sizes App Store Connect accepts. Upload deliberately, never
-  blindly: `asc screenshots list --version-localization …` first (a draft inherits
-  the live shots, and a duplicate has snuck in that way), then `asc screenshots
-  upload --version-localization … --device-type IPHONE_67|IPAD_PRO_3GEN_129`. Only
-  a version in `PREPARE_FOR_SUBMISSION` is editable. Note `asc` reshapes the API's
-  JSON — that list is `.sets[].screenshots[]`, not `.data[]`; reading `.data` gives
-  an empty result that looks exactly like "no screenshots yet".
+  at the exact pixel sizes App Store Connect accepts.
+* **Releasing** (stage, What's New, review notes, screenshots, submit):
+  [docs/releasing.md](docs/releasing.md) and `Scripts/release.sh`. Submitting needs the
+  user's go-ahead.
 * The Mac build is a compile gate, not a product: on the Mac this ships as the iPad
   app, so App Store Connect has no macOS version and there are no Mac screenshots.
 
