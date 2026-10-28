@@ -30,7 +30,8 @@ Scripts/release.sh stage X.Y PREVIOUS
 This creates version X.Y with the newest VALID iOS build and copies the
 description, keywords and URLs from PREVIOUS. What's New is left empty on
 purpose; the script prints the command that sets it. What's New is the
-maintainer's to write or approve.
+maintainer's to write or approve. `DRY_RUN=1` in front of `stage` or `submit`
+previews the plan and the readiness checks without changing anything.
 
 Review notes carry over from the previous version. Read them with
 `asc review details-for-version --version-id ID` and update the "changes since"

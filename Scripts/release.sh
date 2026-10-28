@@ -5,11 +5,15 @@
 #                                           build, metadata copied from FROM
 #   Scripts/release.sh screenshots VERSION  replace each set with screenshots/<type>/*.png
 #   Scripts/release.sh submit VERSION       wait for screenshot processing, submit for review
+#
+# DRY_RUN=1 makes stage and submit preview their changes instead of making them.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP=6451475618
+MODE=--confirm
+[ -z "${DRY_RUN:-}" ] || MODE=--dry-run
 CMD=${1:-}
 VERSION=${2:-}
 
@@ -61,7 +65,7 @@ require_editable() {
 }
 
 stage() {
-  local from=${1:-} build
+  local from=${1:-} build report status=0
   [ -n "$from" ] || die "usage: $0 stage VERSION FROM"
   # Each build number exists twice, iOS and visionOS; the iOS version needs the iOS one.
   build=$(asc builds list --app "$APP" --platform IOS --version "$VERSION" \
@@ -70,9 +74,13 @@ stage() {
 
   say "Staging $VERSION with build $build, metadata from $from"
   # Without --checkpoint-file, asc writes .asc/ into the working directory.
-  asc release stage --app "$APP" --version "$VERSION" --build-id "$build" \
+  report=$(asc release stage --app "$APP" --version "$VERSION" --build-id "$build" \
     --copy-metadata-from "$from" --exclude-fields whatsNew \
-    --checkpoint-file "$(mktemp -d)/stage.json" --confirm --output table
+    --checkpoint-file "$(mktemp -d)/stage.json" "$MODE") || status=$?
+  jq -r '(.steps[] | "  \(.name): \(.status) - \(.message)"),
+    (.steps[] | select(.name == "validate_readiness") | .details.report.checks[]? | "    \(.severity): \(.message)")' <<<"$report"
+  [ "$status" -eq 0 ] || die "staging stopped at $(jq -r .failedStep <<<"$report")"
+  [ -z "${DRY_RUN:-}" ] || return 0
 
   local loc
   loc=$(localization_id "$(version_id)")
@@ -138,7 +146,7 @@ submit() {
   done
 
   say "Submitting $VERSION (build $build) for review"
-  asc review submit --app "$APP" --version-id "$vid" --build-id "$build" --confirm --output table
+  asc review submit --app "$APP" --version-id "$vid" --build-id "$build" "$MODE"
   printf '  %s is now %s\n' "$VERSION" "$(version_state "$vid")"
 }
 
