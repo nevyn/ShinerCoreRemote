@@ -10,14 +10,7 @@
 # iPhone and iPad are the whole story: on the Mac this ships as the iPad app,
 # so there is no macOS listing and no separate Mac screenshots to take.
 #
-# Upload onto a PREPARE_FOR_SUBMISSION version only, and list what is already
-# there first (`asc screenshots list`; its JSON is .sets[].screenshots[], not
-# .data[]). An upload can report failure after the bytes landed, so let the
-# listing decide whether to retry — and order follows upload order, with no
-# way to reorder afterwards:
-#   LOC=$(asc localizations list --version <VERSION_ID> | ...)
-#   asc screenshots upload --version-localization "$LOC" \
-#       --path screenshots/APP_IPHONE_67/3-core.png --device-type IPHONE_67
+# Upload with Scripts/release.sh screenshots VERSION (docs/releasing.md).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
