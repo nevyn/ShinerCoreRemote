@@ -34,6 +34,8 @@ public enum CoreProps {
     public static let animation = PropertyKey<StringConverter>("animation", "bee29c30-aa11-45b2-b5a2-8ff8d0bab262")
     public static let beatSync = PropertyKey<IntConverter>("beatSync", "6f97efc2-096e-4704-9feb-f9c2f41577ee")
     public static let blendMode = PropertyKey<StringConverter>("blendMode", "03686c5c-6e6f-44f0-943f-db6388d9fdd4")
+    /// The preset that the core switches to, lights on, whenever it powers on; -1 resumes as it was left.
+    public static let bootPreset = PropertyKey<IntConverter>("bootPreset", "ffc4df79-8c9c-4efc-8d8f-867b2a776717")
     public static let ledOrder = PropertyKey<StringConverter>("ledOrder", "f3b7c8a1-5d2e-4f19-8c6a-9e1d0b2c3a4f")
     public static let ledCount = PropertyKey<IntConverter>("ledCount", "f5c67dcb-8798-4818-901f-cff9917d1a62")
     public static let maxCurrent = PropertyKey<IntConverter>("maxCurrent", "2b6d7f98-2df7-446d-a0df-112e34d202f5")

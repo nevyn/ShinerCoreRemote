@@ -143,6 +143,10 @@ struct CoreSettingsView: View {
                         ToggleBox(title: "Microphone (beat detection)", session: session, key: CoreProps.mic)
                     }
                     GridRow {
+                        PowerOnPresetBox(session: session)
+                            .gridCellColumns(2)
+                    }
+                    GridRow {
                         IntSliderBox(title: "Power cap (mA, 0 = off)", session: session, key: CoreProps.maxCurrent, range: 0 ... 10000)
                             .gridCellColumns(2)
                     }

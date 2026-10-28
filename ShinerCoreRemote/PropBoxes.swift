@@ -139,6 +139,37 @@ struct ToggleBox: View {
     }
 }
 
+/// Lets an installation that loses power reset itself: whenever the core
+/// powers on, it turns its lights on and switches to the chosen preset.
+struct PowerOnPresetBox: View {
+    let session: CoreSession
+    private let key = CoreProps.bootPreset
+    private let resumes = -1
+
+    var body: some View {
+        let preset = session.state[key] ?? resumes
+        VStack {
+            Toggle("On power on, use preset", isOn: Binding(
+                get: { preset != resumes },
+                set: { session.set(key, to: $0 ? session.state[CoreProps.preset] ?? 0 : resumes) }
+            ))
+            Picker("Power-on preset", selection: Binding(
+                get: { max(preset, 0) },
+                set: { session.set(key, to: $0) }
+            )) {
+                ForEach(0..<5, id: \.self) { Text($0.description).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .disabled(preset == resumes)
+            Text(preset == resumes ? "Powers on as it was left." : "Also turns the lights on.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .propBox(key, in: session)
+    }
+}
+
 /// Says which wired switch is holding a setting, so the app can't change it.
 struct HeldCaption: View {
     let pin: String?
