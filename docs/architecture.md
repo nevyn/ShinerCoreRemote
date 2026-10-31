@@ -75,6 +75,33 @@ in the layout even when unavailable — dimmed via `.availability(of:in:)` —
 because structural stability is what keeps scrolling from jumping while
 characteristic reads trickle in.
 
+## Strip preview
+
+The Animation tab draws the selected layer as the strip would show it. The drawing
+comes from the firmware's render library, not from Swift: ShinerCoreKit depends on
+the firmware repository's SwiftPM package `ShinerRender` (a path dependency on the
+firmware worktree until the firmware PR merges, then a revision pin), and only
+`Render/StripRenderer.swift` imports it. The library's C API is a contract that only
+grows; see the firmware's docs/rendering.md.
+
+* `RenderLibrary` addresses the library's animations and blend modes by name, so a
+  core on other firmware previews correctly wherever names match. `StripRenderer`
+  returns nil for an animation name the library doesn't know: no preview beats a
+  wrong one. An unknown blend mode blends as Add, as on the device.
+* `CoreState.layerLook` turns the selected layer's wire values into a `LayerLook`.
+  A layer's time is seconds / speed; a beat-synced layer and Beat Pulse play against
+  a steady 120 bpm beat, because the app hears no music.
+* `CoreState.animationDoc(for:)` says which colors an animation reads and what it
+  calls tau and phi. The core's `animationDocs` wins (matched by index to
+  `documentation.animations`; a count mismatch is reported and ignored), then the
+  render library's table by name, then generic "Tau"/"Phi" with both colors.
+* `StripPreview` (app target) draws pixels as dots with additive halos in a black
+  well, in both appearances. It shows the selected layer alone, drawn with Set,
+  because the app only sees the layer that the `layer` cursor selects. A
+  `PreviewClock` advances playback by the current speed each frame, so a speed
+  change alters the pace instead of jumping. Under Reduce Motion the preview holds a
+  still frame a third of the way into the cycle.
+
 ## Wiring
 
 The Wiring tab edits the core's wiring: a map from pin to role, defined by the
