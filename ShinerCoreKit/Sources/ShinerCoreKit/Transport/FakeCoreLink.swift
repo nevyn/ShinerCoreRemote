@@ -127,7 +127,14 @@ public final class FakeCoreLink: CoreLink {
     /// Replaces a layer of a preset, as if edited on the device.
     public func setLayer(_ layer: [PropertyID: String], preset: Int, slot: Int) {
         presets[preset][slot] = layer
+        if (preset, slot) == (presetCursor, layerCursor) { republishCursorLayer() }
         publishLayers(notify: true)
+    }
+
+    private func republishCursorLayer() {
+        for id in CoreProps.perLayer where exposed.contains(id) {
+            emit.yield(.valueChanged(id, presets[presetCursor][layerCursor][id]!))
+        }
     }
 
     public func connect() {
@@ -182,13 +189,11 @@ public final class FakeCoreLink: CoreLink {
         default:
             let cursorBefore = (presetCursor, layerCursor)
             store(raw, for: id)
-            if (presetCursor, layerCursor) != cursorBefore {
-                for id in CoreProps.perLayer where exposed.contains(id) {
-                    emit.yield(.valueChanged(id, presets[presetCursor][layerCursor][id]!))
-                }
-            }
+            if (presetCursor, layerCursor) != cursorBefore { republishCursorLayer() }
         }
         publishLayers(notify: true)
+        // A write is a round trip: what the core notified meanwhile reaches the session before the ack.
+        await Task.yield()
     }
 
     /// Out-of-range cursors are ignored, like the firmware does.
