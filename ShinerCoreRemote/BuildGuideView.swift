@@ -45,9 +45,6 @@ struct BuildGuideStepView: View {
                     BoardTile(layout: layout, selected: board == layout.id) { board = layout.id }
                 }
             }
-            Text("M5StickC Plus runs ShinerCore too, but this guide has no drawing of it yet.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -94,12 +91,15 @@ struct BuildGuideStepView: View {
     }
 
     private var powerUp: some View {
-        page("Power it up and find it", next: "Back to the list") {
+        let layout = layout
+        return page("Power it up and find it", next: "Back to the list") {
             SearchingPulse()
                 .frame(width: 140, height: 140)
                 .frame(maxWidth: .infinity)
             Text("Plug the board into USB power and hold your phone close. Your core shows up in the list; tap it to play.")
-            Text("Buttons, switches and knobs go on the white wire or the headers. Set them up later, in the core's Wiring tab.")
+            Text(layout.hasWiring
+                 ? "Buttons, switches and knobs go on the white wire or the headers. Set them up later, in the core's Wiring tab."
+                 : "The white wire drives LEDs too. The \(layout.name) has no pins for buttons, switches or knobs.")
                 .foregroundStyle(.secondary)
         }
     }
@@ -176,6 +176,10 @@ private struct WireRow: View {
 
 #Preview("4 Plug it in, AtomS3 Lite") {
     NavigationStack { BuildGuideStepView(step: .plugIn, board: .constant("atoms3-lite")) {} }
+}
+
+#Preview("4 Plug it in, M5StickC Plus") {
+    NavigationStack { BuildGuideStepView(step: .plugIn, board: .constant("stickc-plus")) {} }
 }
 
 #Preview("5 Power it up") {

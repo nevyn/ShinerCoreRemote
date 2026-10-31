@@ -56,7 +56,9 @@ struct WiringView: View {
                 }
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(8)
-                Text("Wiggle a switch or turn a knob to see which row reacts. Wiring is the same in every preset.")
+                Text(docs.pins.isEmpty
+                     ? "The \(layout?.name ?? docs.board) has no pins for switches, buttons or knobs. Both Grove signal wires drive LEDs."
+                     : "Wiggle a switch or turn a knob to see which row reacts. Wiring is the same in every preset.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
@@ -258,6 +260,14 @@ struct LiveIndicator: View {
 
 #Preview("Wiring, AtomS3 Lite") {
     let session = CoreSession(link: FakeCoreLink.demo(board: .atomS3Lite))
+    NavigationStack {
+        CoreControlsView(session: session, tab: .wiring).navigationTitle("Nevyn")
+    }
+    .task { await session.run() }
+}
+
+#Preview("Wiring, M5StickC Plus") {
+    let session = CoreSession(link: FakeCoreLink.demo(board: .stickCPlus))
     NavigationStack {
         CoreControlsView(session: session, tab: .wiring).navigationTitle("Nevyn")
     }
