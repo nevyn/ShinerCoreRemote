@@ -33,13 +33,14 @@ enum DemoMode: Equatable {
     case controls(CoreControlsView.Tab)
     /// `-demo-offline`: connected UI in its reconnecting state
     case offline
-    /// `-demo-list`: the discovery list
-    case list
+    /// `-demo-list`: the discovery list; `-demo-list-empty`: the list before any core shows up
+    case list(empty: Bool)
 
     static var fromLaunchArguments: DemoMode? {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-demo-offline") { return .offline }
-        if args.contains("-demo-list") { return .list }
+        if args.contains("-demo-list") { return .list(empty: false) }
+        if args.contains("-demo-list-empty") { return .list(empty: true) }
         if let flag = args.firstIndex(of: "-demo-tab"), args.indices.contains(flag + 1) {
             guard let tab = CoreControlsView.Tab(rawValue: args[flag + 1]) else {
                 preconditionFailure("-demo-tab wants one of \(CoreControlsView.Tab.allCases.map(\.rawValue))")
@@ -57,15 +58,15 @@ struct DemoRoot: View {
     @State private var session: CoreSession?
 
     private static let cores = [
-        DiscoveredCore(id: UUID(), name: "Vindarnas hus"),
-        DiscoveredCore(id: UUID(), name: "Nevyn's jacket"),
-        DiscoveredCore(id: UUID(), name: "Demo core"),
+        (DiscoveredCore(id: UUID(), name: "Vindarnas hus"), -58),
+        (DiscoveredCore(id: UUID(), name: "Nevyn's jacket"), -71),
+        (DiscoveredCore(id: UUID(), name: "Demo core"), -83),
     ]
 
     var body: some View {
         switch mode {
-        case .list:
-            CoreListView(browser: CoreBrowser(previewCores: Self.cores,
+        case .list(let empty):
+            CoreListView(browser: CoreBrowser(previewCores: empty ? [] : Self.cores,
                                               linkFactory: { _ in FakeCoreLink.demo() }))
         case .controls(let tab):
             controls(tab: tab)

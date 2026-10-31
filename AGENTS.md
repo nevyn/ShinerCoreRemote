@@ -86,7 +86,8 @@ hand-edit the pbxproj to add files.
   logic, the user covers hardware smoke tests.
 * **Visual verification in the simulator** (DEBUG builds): launch with `-demo`
   (controls, connected fake), `-demo-tab animation|core|mesh|wiring` (a specific tab),
-  `-demo-offline` (reconnecting state), or `-demo-list` (the discovery list), then
+  `-demo-offline` (reconnecting state), `-demo-list` (the discovery list), or
+  `-demo-list-empty` (the list before any core appears), then
   `xcrun simctl io booted screenshot`. Every screen is reachable by argument alone —
   keep it that way when adding screens, it's what makes captures tap-free. A new tab
   needs an entry in `SHOTS` in Scripts/screenshots.sh too, or the store listing keeps
