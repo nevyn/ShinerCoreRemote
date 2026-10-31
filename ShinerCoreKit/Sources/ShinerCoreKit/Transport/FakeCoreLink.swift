@@ -118,6 +118,9 @@ public final class FakeCoreLink: CoreLink {
     /// ShinyTypes.cpp and Animations.cpp, in firmware order.
     static let demoDocumentation = #"{"blendModes":["Add","Subtract","Add Wrap","Subtract Wrap","Multiply","Dissolve","Average","Set","Screen","Lighten","Darken","Difference","Overlay","Color Dodge"],"animations":["Nothing","Static","Opposing Waves","Single Wave","Breathe","Rainbow","Comet","Scanner","Twinkle","Theater Chase","Color Wipe","Gradient Pulse","Sparkle","Beat Pulse"],"ledColorOrders":["RGB","GRB","BGR"]}"#
 
+    /// What the firmware's animationDocsJSON (ShinyTypes.cpp) sends for those animations.
+    static let demoAnimationDocs = #"[[0],[1],[2,"Wave length","Counter-wave length"],[1,"Wave length","Phase"],[2],[0,"Rainbows","Drift speed"],[2,"Tail length","Head width"],[2,"Width","Glow"],[2,"Density","Twinkle speed"],[2,"Spacing","Group size"],[2,"Wipe time"],[2,"Sharpness","Repeats"],[2,"Flash length","Density"],[1]]"#
+
     /// A populated fake for previews, wired like the given board might be. Values
     /// are in the firmware's wire formats, so screenshots show what a real core sends.
     public static func demo(board: DemoBoard = .atomEcho) -> FakeCoreLink {
@@ -145,6 +148,7 @@ public final class FakeCoreLink: CoreLink {
             CoreProps.carouselBeats.id: "8",
             CoreProps.maxCurrent.id: "0",
             CoreProps.documentation.id: demoDocumentation,
+            CoreProps.animationDocs.id: demoAnimationDocs,
         ])
         let targets = #""targets":["brightness","speed","tau","phi","color1.r","color1.g","color1.b","color1.h","color1.s","color1.v","color2.r","color2.g","color2.b","color2.h","color2.s","color2.v"]"#
         let atomPins = #""pins":["G21","G25","G22","G19","G23","G33","G26","G32"]"#

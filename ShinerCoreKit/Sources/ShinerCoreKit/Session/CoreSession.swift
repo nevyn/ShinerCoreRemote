@@ -104,6 +104,16 @@ public final class CoreSession {
                 let reason = (error as? DecodingError)?.summary ?? String(describing: error)
                 lastError = "Core sent unreadable documentation (\(reason)); menus may be incomplete."
             }
+            checkAnimationDocs()
+        case CoreProps.animationDocs.id:
+            do {
+                state.animationDocs = try AnimationDocs(json: raw)
+            } catch {
+                state.animationDocs = nil
+                let reason = (error as? DecodingError)?.summary ?? String(describing: error)
+                lastError = "Core sent unreadable animationDocs (\(reason)); using the app's own animation table."
+            }
+            checkAnimationDocs()
         case CoreProps.wiringDocs.id:
             do {
                 state.wiringDocs = try WiringDocs(json: raw)
@@ -131,6 +141,15 @@ public final class CoreSession {
         default:
             break
         }
+    }
+
+    /// animationDocs pairs with documentation.animations by index, so a count mismatch
+    /// would hand animations each other's docs.
+    private func checkAnimationDocs() {
+        guard let docs = state.animationDocs, let animations = state.documentation?.animations,
+              docs.entries.count != animations.count else { return }
+        state.animationDocs = nil
+        lastError = "Core's animationDocs lists \(docs.entries.count) animations but its documentation lists \(animations.count); using the app's own animation table."
     }
 
     /// The firmware rejects invalid wiring silently, keeping its own; the

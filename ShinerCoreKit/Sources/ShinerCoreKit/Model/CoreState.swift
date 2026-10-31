@@ -9,6 +9,9 @@ public struct CoreState: Equatable, Sendable {
     public var available: Set<PropertyID> = []
     /// Decoded once when the documentation property arrives.
     public var documentation: Documentation?
+    /// Decoded once when the animationDocs property arrives; nil when it doesn't
+    /// match `documentation`, so that animations never get another's docs.
+    public var animationDocs: AnimationDocs?
     /// Decoded once when the wiringDocs property arrives.
     public var wiringDocs: WiringDocs?
 
