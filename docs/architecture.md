@@ -79,8 +79,8 @@ characteristic reads trickle in.
 
 The Animation tab draws the selected layer as the strip would show it. The drawing
 comes from the firmware's render library, not from Swift: ShinerCoreKit depends on
-the firmware repository's SwiftPM package `ShinerRender` (a path dependency on the
-firmware worktree until the firmware PR merges, then a revision pin), and only
+the firmware repository's SwiftPM package `ShinerRender`, pinned to a firmware commit
+(move the pin when the firmware's animations change, so previews follow), and only
 `Render/StripRenderer.swift` imports it. The library's C API is a contract that only
 grows; see the firmware's docs/rendering.md.
 
