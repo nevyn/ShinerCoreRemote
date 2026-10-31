@@ -56,4 +56,13 @@ public enum CoreProps {
     public static let wiring = PropertyKey<WiringConverter>("wiring", "2be57867-0fd5-45b7-93af-c9edff69fe60")
     public static let pinStatus = PropertyKey<PinStatusConverter>("pinStatus", "53775889-c119-4673-89f2-359a80fabcca")
     public static let wiringDocs = PropertyKey<WiringDocsConverter>("wiringDocs", "682bf183-44f6-4dc9-9eb0-640c05ae45db")
+    /// The layer summary: every layer that the strip plays (`LayerSummary`). Read-only.
+    public static let layers = PropertyKey<StringConverter>("layers", "a988b500-1b73-48e7-b353-9612e873af48")
+    /// Changes whenever `layers` would read differently; notifies.
+    public static let layersRevision = PropertyKey<IntConverter>("layersRevision", "9231bed4-aec8-4fa0-88be-3242e937fc0a")
+    /// Write-only: `FROM TO` moves a layer of the current preset (`CoreSession.moveLayer`).
+    public static let layerMove = PropertyKey<StringConverter>("layerMove", "df64df61-5728-4e42-809f-bb7735fb30a0")
+
+    /// Properties that the firmware doesn't let anyone read.
+    public static let writeOnly: Set<PropertyID> = [layerMove.id]
 }

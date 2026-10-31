@@ -166,7 +166,7 @@ public final class CoreSession {
     /// have survived, but the device state may not have.
     public func refresh() {
         guard connection == .connected else { return }
-        for id in state.available { issueRead(id) }
+        for id in state.available where !CoreProps.writeOnly.contains(id) { issueRead(id) }
     }
 
     private func issueRead(_ id: PropertyID) {
