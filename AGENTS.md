@@ -90,8 +90,10 @@ hand-edit the pbxproj to add files.
   `-demo-editor <layer>` (Play with the layer editor open), `-demo-neighbor` (the mesh
   carousel plays a neighbor's preset), `-demo-legacy` (firmware without the layer
   summary), `-demo-offline` (reconnecting state), `-demo-list` (the discovery list), or
-  `-demo-list-empty` (the list before any core appears), or `-demo-loading` (connected,
-  no values read yet; combines with `-demo-tab`), then
+  `-demo-list-empty` (the list before any core appears), `-demo-loading` (connected,
+  no values read yet; combines with `-demo-tab`), `-demo-onboarding 1|2|3` (an onboarding
+  page), or `-demo-build-guide <1-5> [board id]` (a build guide step; the board defaults
+  to `atom-lite` after step 1), then
   `xcrun simctl io booted screenshot`. `-demo-animation <name>` gives the demo layer another
   animation; a name the render library doesn't know shows the no-preview state. Every
   screen is reachable by argument alone — keep it that way when adding screens, it's what
