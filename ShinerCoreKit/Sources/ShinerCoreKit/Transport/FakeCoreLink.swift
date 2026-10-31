@@ -324,7 +324,7 @@ public final class FakeCoreLink: CoreLink {
 
     /// The boards that `demo(board:)` can pose as.
     public enum DemoBoard: String, CaseIterable, Sendable {
-        case atomEcho = "atom-echo", atomLite = "atom-lite", atomS3Lite = "atoms3-lite"
+        case atomEcho = "atom-echo", atomLite = "atom-lite", atomS3Lite = "atoms3-lite", stickCPlus = "stickc-plus"
     }
 
     /// What the firmware's buildDocumentationJSON (Comms.h) sends: the names in
@@ -334,8 +334,6 @@ public final class FakeCoreLink: CoreLink {
     /// What the firmware's animationDocsJSON (ShinyTypes.cpp) sends for those animations.
     nonisolated static let demoAnimationDocs = #"[[0],[1],[2,"Wave length","Counter-wave length"],[1,"Wave length","Phase"],[2],[0,"Rainbows","Drift speed"],[2,"Tail length","Head width"],[2,"Width","Glow"],[2,"Density","Twinkle speed"],[2,"Spacing","Group size"],[2,"Wipe time"],[2,"Sharpness","Repeats"],[2,"Flash length","Density"],[1]]"#
 
-    /// A populated fake for previews, wired like the given board might be. Values
-    /// are in the firmware's wire formats, so screenshots show what a real core sends.
     /// A populated fake for previews, wired like the given board might be. Values
     /// are in the firmware's wire formats, so screenshots show what a real core sends.
     /// Preset 1, under the cursor, stacks Comet (Screen) and Sparkle on Gradient Pulse.
@@ -389,6 +387,10 @@ public final class FakeCoreLink: CoreLink {
             link.values[CoreProps.wiringDocs.id] = #"{"board":"atoms3-lite","pins":["G39","G38","G5","G6","G7","G8","G2","G1"],"frontButton":"G41","analog":["G5","G6","G7","G8","G2","G1"],"led":["G2","G1"],"claims":{},\#(targets)}"#
             link.values[CoreProps.wiring.id] = #"{"G39":{"button":"nextPreset"},"G38":{"switch":"lightsOff"},"G5":{"switch":"preset","preset":0},"G6":{"switch":"preset","preset":1},"G7":{"switch":"preset","preset":2},"G8":{"switch":"preset","preset":3},"G2":{"leds":true},"G1":{"leds":true},"G41":{"button":"nextPreset"}}"#
             link.values[CoreProps.pinStatus.id] = "010000ffffffffffff"
+        case .stickCPlus:
+            link.values[CoreProps.wiringDocs.id] = #"{"board":"stickc-plus","pins":[],"frontButton":"G37","analog":[],"led":[],"claims":{},\#(targets)}"#
+            link.values[CoreProps.wiring.id] = #"{"G37":{"button":"nextPreset"}}"#
+            link.values[CoreProps.pinStatus.id] = "010000"
         }
         return link
     }

@@ -63,6 +63,16 @@ enum DemoMode: Equatable {
     /// `-demo-neighbor`: the mesh carousel plays a neighbor's preset.
     static var neighbor: Bool { ProcessInfo.processInfo.arguments.contains("-demo-neighbor") }
 
+    /// `-demo-board <id>`: the board that the fake core poses as; atom-echo by default.
+    static var board: FakeCoreLink.DemoBoard {
+        let args = ProcessInfo.processInfo.arguments
+        guard let flag = args.firstIndex(of: "-demo-board") else { return .atomEcho }
+        guard args.indices.contains(flag + 1), let board = FakeCoreLink.DemoBoard(rawValue: args[flag + 1]) else {
+            preconditionFailure("-demo-board wants one of \(FakeCoreLink.DemoBoard.allCases.map(\.rawValue))")
+        }
+        return board
+    }
+
     /// `-demo-legacy`: firmware that predates the layer summary.
     static var legacy: Bool { ProcessInfo.processInfo.arguments.contains("-demo-legacy") }
 
@@ -105,7 +115,7 @@ enum DemoMode: Equatable {
 
 struct DemoRoot: View {
     let mode: DemoMode
-    @State private var link = FakeCoreLink.demo()
+    @State private var link = FakeCoreLink.demo(board: DemoMode.board)
     @State private var session: CoreSession?
 
     private static let cores = [

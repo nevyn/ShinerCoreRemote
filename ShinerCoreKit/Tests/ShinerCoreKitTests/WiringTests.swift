@@ -150,6 +150,14 @@ enum WiringFixtures {
         #expect(docs.targets.contains(.color(.secondary, .value)))
     }
 
+    @Test func boardWithoutWiringPinsDecodes() throws {
+        let docs = try WiringDocs(json: #"{"board":"stickc-plus","pins":[],"frontButton":"G37","analog":[],"led":[],"claims":{},"targets":["brightness"]}"#)
+        #expect(docs.pins.isEmpty)
+        #expect(docs.frontButton == "G37")
+        #expect(try PinStatus(hex: "010000").revision == 1)
+        #expect(try Wiring(json: #"{"G37":{"button":"nextPreset"}}"#)["G37"] == .button(.nextPreset))
+    }
+
     @Test func frontButtonIsAbsentFromOlderFirmware() throws {
         #expect(try WiringDocs(json: WiringFixtures.liteDocs).frontButton == nil)
     }
