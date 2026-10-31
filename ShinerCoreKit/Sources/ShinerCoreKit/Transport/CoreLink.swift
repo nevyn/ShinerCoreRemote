@@ -1,7 +1,8 @@
 import Foundation
 
-public struct CoreLinkError: Error, CustomStringConvertible, Equatable, Sendable {
+public struct CoreLinkError: LocalizedError, CustomStringConvertible, Equatable, Sendable {
     public let description: String
+    public var errorDescription: String? { description }
     public init(_ description: String) { self.description = description }
     public init(wrapping error: some Error) {
         self.description = (error as NSError).localizedDescription

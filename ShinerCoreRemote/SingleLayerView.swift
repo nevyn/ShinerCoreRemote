@@ -1,8 +1,9 @@
 import SwiftUI
 import ShinerCoreKit
 
-/// Everything that shapes the current animation, per preset and layer.
-struct AnimationSettingsView: View {
+/// One layer at a time, picked by number: Play's layer section for cores whose firmware
+/// predates the layer summary.
+struct SingleLayerView: View {
     let session: CoreSession
 
     var body: some View {
@@ -10,69 +11,64 @@ struct AnimationSettingsView: View {
         let docs = state.documentation
         let animation = state[CoreProps.animation]
         let animationDoc = animation.map(state.animationDoc(for:)) ?? .generic
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                PresetPicker(session: session)
-                LayerPicker(session: session)
-                LayerPreview(state: state)
-                Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
+            LayerPicker(session: session)
+            LayerPreview(state: state)
+            Grid(horizontalSpacing: 12, verticalSpacing: 12) {
+                GridRow {
+                    AnimationTile(session: session, options: docs?.animations ?? [])
+                        .gridCellColumns(2)
+                }
+                GridRow {
+                    ColorTile(title: "Primary", session: session, key: CoreProps.color,
+                              used: animationDoc.colors >= 1)
+                    ColorTile(title: "Secondary", session: session, key: CoreProps.color2,
+                              used: animationDoc.colors >= 2)
+                }
+                if let animation, let note = Self.colorNote(animation: animation, colors: animationDoc.colors) {
                     GridRow {
-                        AnimationTile(session: session, options: docs?.animations ?? [])
+                        Text(note)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
                             .gridCellColumns(2)
                     }
+                }
+                GridRow {
+                    SpeedTile(session: session)
+                    SettingTile("Beat sync", symbol: "waveform") {
+                        Toggle("Beat sync", isOn: session.boolBinding(CoreProps.beatSync))
+                            .labelsHidden()
+                    }
+                    .availability(of: CoreProps.beatSync, in: session)
+                }
+                // Full width: parameter names such as "Counter-wave length" need the room.
+                if let tau = animationDoc.tau {
                     GridRow {
-                        ColorTile(title: "Primary", session: session, key: CoreProps.color,
-                                  used: animationDoc.colors >= 1)
-                        ColorTile(title: "Secondary", session: session, key: CoreProps.color2,
-                                  used: animationDoc.colors >= 2)
-                    }
-                    if let animation, let note = Self.colorNote(animation: animation, colors: animationDoc.colors) {
-                        GridRow {
-                            Text(note)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 4)
-                                .gridCellColumns(2)
-                        }
-                    }
-                    GridRow {
-                        SpeedTile(session: session)
-                        SettingTile("Beat sync", symbol: "waveform") {
-                            Toggle("Beat sync", isOn: session.boolBinding(CoreProps.beatSync))
-                                .labelsHidden()
-                        }
-                        .availability(of: CoreProps.beatSync, in: session)
-                    }
-                    // Full width: parameter names such as "Counter-wave length" need the room.
-                    if let tau = animationDoc.tau {
-                        GridRow {
-                            ParameterTile(title: tau, session: session, key: CoreProps.tau).gridCellColumns(2)
-                        }
-                    }
-                    if let phi = animationDoc.phi {
-                        GridRow {
-                            ParameterTile(title: phi, session: session, key: CoreProps.phi).gridCellColumns(2)
-                        }
-                    }
-                    GridRow {
-                        SettingTile("Blend mode", symbol: "square.stack.3d.down.right") {
-                            VocabularyPicker("Blend mode", session: session, key: CoreProps.blendMode,
-                                             options: docs?.blendModes ?? [])
-                                .labelsHidden()
-                        }
-                        .gridCellColumns(2)
-                        .availability(of: CoreProps.blendMode, in: session)
+                        ParameterTile(title: tau, session: session, key: CoreProps.tau).gridCellColumns(2)
                     }
                 }
+                if let phi = animationDoc.phi {
+                    GridRow {
+                        ParameterTile(title: phi, session: session, key: CoreProps.phi).gridCellColumns(2)
+                    }
+                }
+                GridRow {
+                    SettingTile("Blend mode", symbol: "square.stack.3d.down.right") {
+                        VocabularyPicker("Blend mode", session: session, key: CoreProps.blendMode,
+                                         options: docs?.blendModes ?? [])
+                            .labelsHidden()
+                    }
+                    .gridCellColumns(2)
+                    .availability(of: CoreProps.blendMode, in: session)
+                }
             }
-            .padding()
         }
-        .background(Color.groupedBackground)
     }
 }
 
-extension AnimationSettingsView {
+extension SingleLayerView {
     /// Explains a dimmed color tile; nil when the animation reads both colors or draws nothing.
     static func colorNote(animation: String, colors: Int) -> String? {
         guard animation != RenderLibrary.nothing else { return nil }
@@ -87,14 +83,18 @@ extension AnimationSettingsView {
 /// The selected layer drawn on its own, labelled so that nobody takes it for the whole strip.
 struct LayerPreview: View {
     let state: CoreState
+    /// Says "Layer N alone", where nothing else says that the preview isn't the whole strip.
+    var labeled = true
 
     var body: some View {
         let layer = state[CoreProps.layer] ?? 0
         VStack(alignment: .leading, spacing: 6) {
             StripPreview(looks: look.map { [$0] } ?? [], pixelCount: pixelCount, caption: caption)
-            Text("Layer \(layer) alone")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            if labeled {
+                Text("Layer \(layer) alone")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -116,28 +116,6 @@ struct LayerPreview: View {
         if animation == RenderLibrary.nothing { return "Nothing plays on this layer" }
         if RenderLibrary.animationDoc(named: animation) == nil { return "No preview for \(animation)" }
         return nil
-    }
-}
-
-/// Switches the whole core to another preset; disabled while a switch holds one.
-struct PresetPicker: View {
-    let session: CoreSession
-
-    var body: some View {
-        let heldBy = session.state.presetHold?.pin
-        VStack(alignment: .leading, spacing: 6) {
-            Picker("Preset", selection: Binding(
-                get: { session.state[CoreProps.preset] ?? 0 },
-                set: { session.select(CoreProps.preset, $0) }
-            )) {
-                ForEach(0 ..< CoreProps.presetCount, id: \.self) { Text("Preset \($0)").tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .disabled(heldBy != nil)
-            HeldCaption(pin: heldBy)
-        }
-        .availability(of: CoreProps.preset, in: session)
     }
 }
 
@@ -310,34 +288,25 @@ struct ParameterTile: View {
     }
 }
 
-#Preview("Animation") {
-    let session = CoreSession(link: FakeCoreLink.demo())
-    NavigationStack {
-        AnimationSettingsView(session: session)
-            .navigationTitle("Nevyn's jacket")
-    }
-    .task { await session.run() }
-}
-
-#Preview("Single color") {
+#Preview("Single layer") {
     let link = FakeCoreLink.demo()
-    link.values[CoreProps.animation.id] = "Single Wave"
+    link.exposesLayerSummary = false
     let session = CoreSession(link: link)
-    return NavigationStack {
-        AnimationSettingsView(session: session)
-            .navigationTitle("Nevyn's jacket")
+    return ScrollView {
+        SingleLayerView(session: session).padding()
     }
     .task { await session.run() }
 }
 
-#Preview("Beat-synced, preset held") {
-    let link = FakeCoreLink.demo(board: .atomLite)
+#Preview("Single color, beat-synced") {
+    let link = FakeCoreLink.demo()
+    link.exposesLayerSummary = false
+    link.values[CoreProps.animation.id] = "Single Wave"
     link.values[CoreProps.beatSync.id] = "1"
     link.values[CoreProps.speed.id] = "0.500"
     let session = CoreSession(link: link)
-    return NavigationStack {
-        AnimationSettingsView(session: session)
-            .navigationTitle("Nevyn's jacket")
+    return ScrollView {
+        SingleLayerView(session: session).padding()
     }
     .task { await session.run() }
 }

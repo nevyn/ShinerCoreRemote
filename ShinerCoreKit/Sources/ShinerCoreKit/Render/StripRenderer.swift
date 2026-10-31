@@ -75,6 +75,11 @@ public struct LayerLook: Equatable, Sendable {
 }
 
 public extension CoreState {
+    /// How bright the strip is, 0-1: `brightness`, or 0 while the lights are off.
+    var stripBrightness: Double {
+        self[CoreProps.mode] == 0 ? 0 : Double(self[CoreProps.brightness] ?? 255) / 255
+    }
+
     /// The selected layer's look; nil until its animation is known.
     var layerLook: LayerLook? {
         guard let animation = self[CoreProps.animation] else { return nil }
@@ -102,15 +107,31 @@ public enum StripRenderer {
     /// clamped to `CoreProps.maxLEDCount` because the count comes from the core. Nil when the render library doesn't know an animation, because a wrong preview
     /// is worse than none. An unknown blend mode blends as Add, as on the device.
     public static func render(_ looks: [LayerLook], seconds: Double, pixelCount: Int) -> [PixelColor]? {
+        render(looks.map { ($0, 1) }, seconds: seconds, pixelCount: pixelCount)
+    }
+
+    /// Composites a stack the way the strip shows it: each layer with its blend mode, a
+    /// closed layer gate hiding its layer, then the whole frame scaled by `brightness`
+    /// (0-1; `CoreState.stripBrightness`). Nil as for `render(_:seconds:pixelCount:)`.
+    public static func render(_ stack: [LayerSummary.Layer], seconds: Double, pixelCount: Int,
+                              brightness: Double) -> [PixelColor]? {
+        let scale = min(max(brightness, 0), 1)
+        return render(stack.map { ($0.look, $0.gateOpen ? 1 : 0) }, seconds: seconds, pixelCount: pixelCount)?.map {
+            PixelColor(r: UInt8((Double($0.r) * scale).rounded()), g: UInt8((Double($0.g) * scale).rounded()),
+                       b: UInt8((Double($0.b) * scale).rounded()))
+        }
+    }
+
+    private static func render(_ looks: [(look: LayerLook, gain: Float)], seconds: Double, pixelCount: Int) -> [PixelColor]? {
         var layers: [ShinerLayer] = []
-        for look in looks {
+        for (look, gain) in looks {
             guard let animation = RenderLibrary.animationNames.firstIndex(of: look.animation) else { return nil }
             let blend = RenderLibrary.blendModeNames.firstIndex(of: look.blendMode) ?? 0
             layers.append(ShinerLayer(
                 animation: Int32(animation), blendMode: Int32(blend),
                 color1: look.color1.shiner, color2: look.color2.shiner,
                 tau: Float(look.tau), phi: Float(look.phi),
-                time: seconds / look.secondsPerCycle, gain: 1))
+                time: seconds / look.secondsPerCycle, gain: gain))
         }
         guard pixelCount > 0 else { return [] }
         let pixelCount = min(pixelCount, CoreProps.maxLEDCount)

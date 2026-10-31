@@ -63,7 +63,8 @@ Layering lives in the local package **ShinerCoreKit** (app target holds views on
   I/O. `PropertyID` is a string-backed key; CBUUIDs exist only in the BLE layer.
 * **Transport** — the `CoreLink` protocol (AsyncStream of events + async writes) is the
   seam. `BLECoreLink`/`CoreBrowser` are the only files that import CoreBluetooth.
-  `FakeCoreLink` is the same seam scripted, for previews and tests.
+  `FakeCoreLink` is the same seam backed by a small model of the firmware, for previews,
+  tests and demo mode.
 * **Session** — `CoreSession` (@Observable @MainActor) enlivens the model: owns state,
   connection lifecycle, write throttling, reconnection. Views never see a peripheral.
 
@@ -85,8 +86,10 @@ hand-edit the pbxproj to add files.
 * Real-device behavior (actual BLE) can't be simulated; previews + FakeCoreLink cover
   logic, the user covers hardware smoke tests.
 * **Visual verification in the simulator** (DEBUG builds): launch with `-demo`
-  (controls, connected fake), `-demo-tab animation|core|mesh|wiring` (a specific tab),
-  `-demo-offline` (reconnecting state), `-demo-list` (the discovery list), or
+  (controls, connected fake), `-demo-tab play|wiring|setup` (a specific tab),
+  `-demo-editor <layer>` (Play with the layer editor open), `-demo-neighbor` (the mesh
+  carousel plays a neighbor's preset), `-demo-legacy` (firmware without the layer
+  summary), `-demo-offline` (reconnecting state), `-demo-list` (the discovery list), or
   `-demo-list-empty` (the list before any core appears), or `-demo-loading` (connected,
   no values read yet; combines with `-demo-tab`), then
   `xcrun simctl io booted screenshot`. `-demo-animation <name>` gives the demo layer another

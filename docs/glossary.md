@@ -14,3 +14,7 @@ App-only terms:
 * **strip preview**: the app's drawing of what a strip shows, rendered by the
   firmware's render library. A preview, not a mirror: the core may run other firmware.
   Not "simulator" or "virtual strip".
+* **composite**: the strip preview of every layer, blended and at the core's brightness:
+  what the strip shows. Play's hero draws it; everything else draws one layer alone.
+* **stack**: a preset's layers that play (not Nothing), as Play lists them, front-most
+  first. Not "layer list".

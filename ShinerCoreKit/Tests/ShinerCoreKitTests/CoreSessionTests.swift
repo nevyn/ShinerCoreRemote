@@ -23,7 +23,11 @@ struct SessionHarness {
         session = CoreSession(link: fake, throttle: .milliseconds(10))
         let s = session
         runner = Task { await s.run() }
-        await settle { s.connection == .connected && s.state[CoreProps.brightness] != nil }
+        // Every readable property answered, so that tests start from the whole picture.
+        await settle {
+            s.connection == .connected && !s.state.available.isEmpty
+                && s.state.available.subtracting(CoreProps.writeOnly).allSatisfy { s.state.raw[$0] != nil }
+        }
     }
 
     func stop() async {

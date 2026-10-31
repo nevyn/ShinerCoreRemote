@@ -24,10 +24,10 @@ WHICH=${1:-all}
 # name:launch-arguments — the order here is the order on the store listing.
 SHOTS=(
   "1-cores:-demo-list"
-  "2-animation:-demo-tab animation"
-  "3-core:-demo-tab core"
-  "4-mesh:-demo-tab mesh"
-  "5-wiring:-demo-tab wiring"
+  "2-play:-demo-tab play"
+  "3-editor:-demo-editor 1"
+  "4-wiring:-demo-tab wiring"
+  "5-setup:-demo-tab setup"
 )
 
 # Simulator name : ASC display type. `asc screenshots sizes --all` lists which

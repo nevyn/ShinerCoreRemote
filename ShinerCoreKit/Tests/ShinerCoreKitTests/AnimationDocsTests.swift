@@ -113,6 +113,29 @@ struct StripRendererTests {
         #expect(synced == StripRenderer.render([look], seconds: 2, pixelCount: 30))
     }
 
+    @Test func compositeBlendsGatesAndDims() throws {
+        let base = LayerSummary.Layer(index: 0, look: LayerLook(animation: "Static", color1: red, color2: blue,
+                                                                 speed: 1, tau: 1, phi: 1))
+        var top = LayerSummary.Layer(index: 1, look: LayerLook(animation: "Static", blendMode: "Add", color1: blue,
+                                                                color2: blue, speed: 1, tau: 1, phi: 1))
+        let both = try #require(StripRenderer.render([base, top], seconds: 0, pixelCount: 4, brightness: 1))
+        #expect(both.first == PixelColor(r: 200, g: 10, b: 255))
+        top.gateOpen = false
+        #expect(StripRenderer.render([base, top], seconds: 0, pixelCount: 4, brightness: 1)?.first == red)
+        #expect(StripRenderer.render([base, top], seconds: 0, pixelCount: 4, brightness: 0.5)?.first
+            == PixelColor(r: 100, g: 5, b: 15))
+        #expect(StripRenderer.render([base, top], seconds: 0, pixelCount: 4, brightness: 0)?.first == .black)
+    }
+
+    @Test func lightsOffDarkensTheStrip() {
+        var state = CoreState()
+        state.raw[CoreProps.brightness.id] = "51"
+        state.raw[CoreProps.mode.id] = "1"
+        #expect(state.stripBrightness == 0.2)
+        state.raw[CoreProps.mode.id] = "0"
+        #expect(state.stripBrightness == 0)
+    }
+
     @Test func beatEnvelopePeaksOnTheBeat() {
         #expect(StripRenderer.beatEnvelope(at: 1.0) == 1)
         #expect(StripRenderer.beatEnvelope(at: 1.4) < 0.1)
