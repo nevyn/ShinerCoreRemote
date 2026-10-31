@@ -79,7 +79,7 @@ files under `ShinerCoreRemote/` or `ShinerCoreKit/` are picked up automatically 
 hand-edit the pbxproj to add files.
 
 * Package tests (fast, no simulator): `swift test --package-path ShinerCoreKit`
-* iOS build: `xcodebuild -project ShinerCoreRemote.xcodeproj -scheme ShinerCoreRemote -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build`
+* iOS build: `xcodebuild -project ShinerCoreRemote.xcodeproj -scheme ShinerCoreRemote -destination 'generic/platform=iOS Simulator' build` (no named device, so it works whatever simulators a Mac has)
 * macOS build (compile gate, no signing needed): `xcodebuild -project ShinerCoreRemote.xcodeproj -scheme ShinerCoreRemote -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build`
 * **Always build iOS AND macOS** — Mac is a first-class target, not an afterthought
   (visionOS is best-effort; don't break `SUPPORTED_PLATFORMS` but no need to build it).
