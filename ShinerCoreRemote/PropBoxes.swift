@@ -2,13 +2,16 @@ import SwiftUI
 import ShinerCoreKit
 
 extension View {
-    /// Dim and disable a control whose property this firmware doesn't
-    /// expose. Controls stay in the layout either way: structural stability is
-    /// what keeps scrolling from jumping as characteristic reads trickle in.
+    /// Dim and disable a control whose property this firmware doesn't expose, and
+    /// show it as a disabled placeholder until its value has been read, rather than an
+    /// editable stand-in value. Controls stay in the layout either way: structural
+    /// stability is what keeps scrolling from jumping as characteristic reads trickle in.
     func availability<C>(of key: PropertyKey<C>, in session: CoreSession) -> some View {
         let available = session.state.isAvailable(key)
+        let loading = available && session.state[key] == nil
         return self
-            .disabled(!available)
+            .disabled(!available || loading)
+            .redacted(reason: loading ? .placeholder : [])
             .opacity(available ? 1 : 0.35)
     }
 }

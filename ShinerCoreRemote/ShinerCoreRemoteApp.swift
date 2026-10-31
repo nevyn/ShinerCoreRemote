@@ -45,6 +45,10 @@ enum DemoMode: Equatable {
         return args[flag + 1]
     }
 
+    /// `-demo-loading`: connected, but no read ever answers, so every control shows
+    /// its loading state. Combines with `-demo-tab`.
+    static var loading: Bool { ProcessInfo.processInfo.arguments.contains("-demo-loading") }
+
     static var fromLaunchArguments: DemoMode? {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-demo-offline") { return .offline }
@@ -56,7 +60,7 @@ enum DemoMode: Equatable {
             }
             return .controls(tab)
         }
-        if args.contains("-demo") { return .controls(.animation) }
+        if args.contains("-demo") || loading { return .controls(.animation) }
         return nil
     }
 }
@@ -93,6 +97,7 @@ struct DemoRoot: View {
         }
         .task {
             if mode == .offline { link.becomeUnreachable() }
+            if DemoMode.loading { link.deferReads = true }
             if let animation = DemoMode.animation { link.values[CoreProps.animation.id] = animation }
             let session = CoreSession(link: link)
             self.session = session
