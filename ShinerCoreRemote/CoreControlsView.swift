@@ -74,38 +74,96 @@ struct CoreSettingsView: View {
     let session: CoreSession
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Grid(horizontalSpacing: 16, verticalSpacing: 16) {
-                    GridRow {
-                        ToggleBox(title: "Lights on", session: session, key: CoreProps.mode,
-                                  heldBy: session.state.lightsHold?.pin)
-                        NameBox(title: "Owner's name", session: session, key: CoreProps.name,
-                                alertTitle: "Change core's name",
-                                prompt: "Enter your name",
-                                message: "Use your own nickname, and the core will rename itself to say it belongs to you.")
-                    }
-                    GridRow {
-                        IntSliderBox(title: "Brightness", session: session, key: CoreProps.brightness, range: 0 ... 255)
-                        IntSliderBox(title: "Number of LEDs", session: session, key: CoreProps.ledCount, range: 0 ... 800)
-                    }
-                    GridRow {
-                        MenuBox(title: "LED order", session: session, key: CoreProps.ledOrder,
-                                options: session.state.documentation?.ledColorOrders ?? [])
-                        ToggleBox(title: "Microphone (beat detection)", session: session, key: CoreProps.mic)
-                    }
-                    GridRow {
-                        PowerOnPresetBox(session: session)
-                            .gridCellColumns(2)
-                    }
-                    GridRow {
-                        IntSliderBox(title: "Power cap (mA, 0 = off)", session: session, key: CoreProps.maxCurrent, range: 0 ... 10000)
-                            .gridCellColumns(2)
+        let state = session.state
+        let lightsHeldBy = state.lightsHold?.pin
+        Form {
+            Section {
+                Toggle(isOn: session.boolBinding(CoreProps.mode)) {
+                    Text("Lights on")
+                    if let lightsHeldBy { Text("Held by the switch on \(lightsHeldBy)") }
+                }
+                .disabled(lightsHeldBy != nil)
+                .availability(of: CoreProps.mode, in: session)
+                LabeledContent("Owner") {
+                    CommitField("Your name", session: session, key: CoreProps.name)
+                }
+                .availability(of: CoreProps.name, in: session)
+                VStack(alignment: .leading) {
+                    LabeledContent("Brightness",
+                                   value: (Double(state[CoreProps.brightness] ?? 0) / 255).formatted(.percent.precision(.fractionLength(0))))
+                    Slider(value: Binding(
+                        get: { Double(state[CoreProps.brightness] ?? 0) },
+                        set: { session.set(CoreProps.brightness, to: Int($0.rounded())) }
+                    ), in: 0 ... 255)
+                    .accessibilityLabel("Brightness")
+                }
+                .availability(of: CoreProps.brightness, in: session)
+                Picker("When powered on", selection: session.binding(CoreProps.bootPreset, default: -1)) {
+                    Text("Resume as it was").tag(-1)
+                    ForEach(0 ..< CoreProps.presetCount, id: \.self) { Text("Lights on, preset \($0)").tag($0) }
+                }
+                .availability(of: CoreProps.bootPreset, in: session)
+            } header: {
+                Text("This core")
+            } footer: {
+                Text("The core names itself after its owner.")
+            }
+
+            Section {
+                LabeledContent("LEDs") {
+                    HStack {
+                        CommitField("Count", session: session, key: CoreProps.ledCount) {
+                            min(max($0, 0), CoreProps.maxLEDCount)
+                        }
+                        #if os(iOS)
+                        .keyboardType(.numbersAndPunctuation)
+                        #endif
+                        Stepper("LEDs", value: session.binding(CoreProps.ledCount, default: 0),
+                                in: 0 ... CoreProps.maxLEDCount)
+                            .labelsHidden()
                     }
                 }
+                .availability(of: CoreProps.ledCount, in: session)
+                VocabularyPicker("LED order", session: session, key: CoreProps.ledOrder,
+                                 options: state.documentation?.ledColorOrders ?? [])
+                    .availability(of: CoreProps.ledOrder, in: session)
+                Picker("Power cap", selection: session.binding(CoreProps.maxCurrent, default: 0)) {
+                    ForEach(PowerCap.choices(current: state[CoreProps.maxCurrent]), id: \.self) {
+                        Text(PowerCap.label(milliamps: $0)).tag($0)
+                    }
+                }
+                .availability(of: CoreProps.maxCurrent, in: session)
+            } header: {
+                Text("LED strip")
+            } footer: {
+                Text("The power cap dims bright frames to fit an estimated current budget.")
             }
-            .padding()
+
+            Section {
+                Toggle("Microphone", isOn: session.boolBinding(CoreProps.mic))
+                    .availability(of: CoreProps.mic, in: session)
+            } header: {
+                Text("Sound")
+            } footer: {
+                Text("Needed for beat sync and Beat Pulse.")
+            }
         }
+        .formStyle(.grouped)
+    }
+}
+
+/// The current limits that the power cap offers, in mA; 0 is no cap.
+enum PowerCap {
+    static let limits = [0, 500, 1000, 1500, 2000, 3000, 4000, 5000]
+
+    /// `limits`, plus a stored value that isn't one of them, so it shows as it is.
+    static func choices(current: Int?) -> [Int] {
+        guard let current, !limits.contains(current) else { return limits }
+        return (limits + [current]).sorted()
+    }
+
+    static func label(milliamps: Int) -> String {
+        milliamps == 0 ? "None" : "\((Double(milliamps) / 1000).formatted(.number.precision(.fractionLength(0 ... 3)))) A"
     }
 }
 
@@ -114,27 +172,26 @@ struct MeshSettingsView: View {
     let session: CoreSession
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Grid(horizontalSpacing: 16, verticalSpacing: 16) {
-                    GridRow {
-                        ToggleBox(title: "Mesh radio", session: session, key: CoreProps.mesh)
-                        ToggleBox(title: "Play shared show", session: session, key: CoreProps.meshShow)
-                    }
-                    GridRow {
-                        NameBox(title: "Group", session: session, key: CoreProps.meshGroup,
-                                alertTitle: "Join a group",
-                                prompt: "Camp or crew name",
-                                message: "Cores only sync and share shows within the same group. Case and surrounding spaces don't matter. Leave empty to run with everyone else who left it empty.",
-                                emptyLabel: "everyone")
-                            .gridCellColumns(2)
-                    }
-                    // carouselBeats is deliberately absent: the firmware doesn't
-                    // sync it between cores yet, so exposing it invites desync.
+        let meshOff = (session.state[CoreProps.mesh] ?? 0) == 0
+        Form {
+            Section {
+                Toggle("Mesh radio", isOn: session.boolBinding(CoreProps.mesh))
+                    .availability(of: CoreProps.mesh, in: session)
+                Toggle("Play the shared show", isOn: session.boolBinding(CoreProps.meshShow))
+                    .disabled(meshOff)
+                    .availability(of: CoreProps.meshShow, in: session)
+                LabeledContent("Group") {
+                    CommitField("Everyone", session: session, key: CoreProps.meshGroup)
                 }
+                .disabled(meshOff)
+                .availability(of: CoreProps.meshGroup, in: session)
+                // carouselBeats is deliberately absent: the firmware doesn't
+                // sync it between cores yet, so exposing it invites desync.
+            } footer: {
+                Text("Cores in the same group sync with each other and take turns choosing the show. Leave the group empty to join everyone else who left it empty.")
             }
-            .padding()
         }
+        .formStyle(.grouped)
     }
 }
 
@@ -156,6 +213,24 @@ struct MeshSettingsView: View {
     return NavigationStack {
         CoreControlsView(session: session, tab: .core)
             .navigationTitle("Vindarnas hus")
+    }
+    .task { await session.run() }
+}
+
+#Preview("Core tab") {
+    let session = CoreSession(link: FakeCoreLink.demo())
+    NavigationStack {
+        CoreControlsView(session: session, tab: .core)
+            .navigationTitle("Nevyn's jacket")
+    }
+    .task { await session.run() }
+}
+
+#Preview("Mesh tab") {
+    let session = CoreSession(link: FakeCoreLink.demo())
+    NavigationStack {
+        CoreControlsView(session: session, tab: .mesh)
+            .navigationTitle("Nevyn's jacket")
     }
     .task { await session.run() }
 }

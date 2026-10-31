@@ -3,102 +3,13 @@ import ShinerCoreKit
 
 extension View {
     /// Dim and disable a control whose property this firmware doesn't
-    /// expose. Boxes stay in the layout either way: structural stability is
+    /// expose. Controls stay in the layout either way: structural stability is
     /// what keeps scrolling from jumping as characteristic reads trickle in.
     func availability<C>(of key: PropertyKey<C>, in session: CoreSession) -> some View {
         let available = session.state.isAvailable(key)
         return self
             .disabled(!available)
             .opacity(available ? 1 : 0.35)
-    }
-
-    /// Shared prop-box chrome.
-    func propBox<C>(_ key: PropertyKey<C>, in session: CoreSession) -> some View {
-        self
-            .frame(minWidth: 100, maxWidth: .infinity, minHeight: 100)
-            .padding()
-            .background(Color.gray.opacity(0.2))
-            .cornerRadius(8)
-            .availability(of: key, in: session)
-    }
-}
-
-/// The wire value, as a debugging-friendly caption.
-struct RawValueText: View {
-    let raw: String?
-    var body: some View {
-        Text(raw ?? "…")
-            .font(.subheadline)
-            .foregroundStyle(.gray)
-    }
-}
-
-struct IntSliderBox: View {
-    let title: String
-    let session: CoreSession
-    let key: PropertyKey<IntConverter>
-    let range: ClosedRange<Double>
-
-    var body: some View {
-        VStack {
-            Text(title).font(.headline)
-            Slider(
-                value: Binding(
-                    get: { Double(session.state[key] ?? 0) },
-                    set: { session.set(key, to: Int($0)) }
-                ),
-                in: range)
-            RawValueText(raw: session.state.rawValue(of: key))
-        }
-        .propBox(key, in: session)
-    }
-}
-
-struct ToggleBox: View {
-    let title: String
-    let session: CoreSession
-    let key: PropertyKey<IntConverter>
-    /// The pin of a closed switch that holds this value; disables the toggle.
-    var heldBy: String?
-
-    var body: some View {
-        VStack {
-            Toggle(title, isOn: session.boolBinding(key))
-                .disabled(heldBy != nil)
-            HeldCaption(pin: heldBy)
-        }
-        .propBox(key, in: session)
-    }
-}
-
-/// Lets an installation that loses power reset itself: whenever the core
-/// powers on, it turns its lights on and switches to the chosen preset.
-struct PowerOnPresetBox: View {
-    let session: CoreSession
-    private let key = CoreProps.bootPreset
-    private let resumes = -1
-
-    var body: some View {
-        let preset = session.state[key] ?? resumes
-        VStack {
-            Toggle("On power on, use preset", isOn: Binding(
-                get: { preset != resumes },
-                set: { session.set(key, to: $0 ? session.state[CoreProps.preset] ?? 0 : resumes) }
-            ))
-            Picker("Power-on preset", selection: Binding(
-                get: { max(preset, 0) },
-                set: { session.set(key, to: $0) }
-            )) {
-                ForEach(0..<5, id: \.self) { Text($0.description).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .disabled(preset == resumes)
-            Text(preset == resumes ? "Powers on as it was left." : "Also turns the lights on.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .propBox(key, in: session)
     }
 }
 
@@ -112,101 +23,6 @@ struct HeldCaption: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-    }
-}
-
-/// Chooser for a firmware-documented vocabulary (animation, blend mode,
-/// LED order): step through with arrows or pick from the menu.
-struct MenuBox: View {
-    let title: String
-    let session: CoreSession
-    let key: PropertyKey<StringConverter>
-    let options: [String]
-
-    private var currentIndex: Int {
-        session.state[key].flatMap(options.firstIndex(of:)) ?? 0
-    }
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title).font(.headline)
-            if options.isEmpty {
-                RawValueText(raw: session.state.rawValue(of: key))
-            } else {
-                HStack(spacing: 12) {
-                    Button(action: { step(-1) }) {
-                        Image(systemName: "chevron.left.circle.fill").font(.title2)
-                    }
-                    .disabled(currentIndex <= 0)
-
-                    Menu {
-                        ForEach(options, id: \.self) { option in
-                            Button(action: { session.set(key, to: option) }) {
-                                HStack {
-                                    Text(option)
-                                    if option == session.state[key] {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Text(session.state[key] ?? "…")
-                            .frame(minWidth: 80)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.gray.opacity(0.3))
-                            .cornerRadius(6)
-                    }
-
-                    Button(action: { step(1) }) {
-                        Image(systemName: "chevron.right.circle.fill").font(.title2)
-                    }
-                    .disabled(currentIndex >= options.count - 1)
-                }
-            }
-        }
-        .propBox(key, in: session)
-    }
-
-    private func step(_ delta: Int) {
-        let index = currentIndex + delta
-        guard options.indices.contains(index) else { return }
-        session.set(key, to: options[index])
-    }
-}
-
-/// A string property, edited via an alert.
-struct NameBox: View {
-    let title: String
-    let session: CoreSession
-    let key: PropertyKey<StringConverter>
-    let alertTitle: String
-    let prompt: String
-    let message: String
-    var emptyLabel = "…"
-    @State private var editing = false
-    @State private var name = ""
-
-    var body: some View {
-        VStack {
-            Text(title).font(.headline)
-            Button(action: {
-                name = session.state[key] ?? ""
-                editing = true
-            }) {
-                Label((session.state[key]?.isEmpty == false ? session.state[key]! : emptyLabel), systemImage: "square.and.pencil")
-                    .font(.headline)
-            }
-            .alert(alertTitle, isPresented: $editing) {
-                TextField(prompt, text: $name)
-                Button("OK") { session.set(key, to: name) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text(message)
-            }
-        }
-        .propBox(key, in: session)
     }
 }
 
@@ -352,5 +168,45 @@ enum BeatSpeed {
         case 1: "1 beat"
         default: "\(beats.plain) beats"
         }
+    }
+}
+
+/// Edits a property as text and writes it when the user submits or leaves the
+/// field, not per keystroke. Text that doesn't parse reverts to the core's value.
+struct CommitField<C: PropertyConverter>: View {
+    let prompt: String
+    let session: CoreSession
+    let key: PropertyKey<C>
+    /// Applied to a parsed value before writing, e.g. to clamp it to the firmware's range.
+    var adjust: (C.ValueType) -> C.ValueType = { $0 }
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    init(_ prompt: String, session: CoreSession, key: PropertyKey<C>,
+         adjust: @escaping (C.ValueType) -> C.ValueType = { $0 }) {
+        self.prompt = prompt
+        self.session = session
+        self.key = key
+        self.adjust = adjust
+    }
+
+    var body: some View {
+        let raw = session.state.rawValue(of: key) ?? ""
+        TextField(prompt, text: $text)
+            .multilineTextAlignment(.trailing)
+            .focused($focused)
+            .onSubmit(commit)
+            .onChange(of: focused) { _, isFocused in if !isFocused { commit() } }
+            .onChange(of: raw, initial: true) { _, newRaw in if !focused { text = newRaw } }
+    }
+
+    private func commit() {
+        guard let value = C.convert(text.trimmingCharacters(in: .whitespaces)) else {
+            text = session.state.rawValue(of: key) ?? ""
+            return
+        }
+        let adjusted = adjust(value)
+        session.set(key, to: adjusted)
+        text = C.unconvert(adjusted)
     }
 }

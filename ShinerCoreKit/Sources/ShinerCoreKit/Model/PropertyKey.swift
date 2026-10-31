@@ -25,6 +25,8 @@ public enum CoreProps {
     public static let presetCount = 5
     /// The firmware's LAYER_COUNT: valid `layer` values are 0 ..< layerCount.
     public static let layerCount = 10
+    /// The firmware's MAX_LED_COUNT: valid `ledCount` values are 0 ... maxLEDCount.
+    public static let maxLEDCount = 800
 
     public static let color = PropertyKey<ColorConverter>("color", "c116fce1-9a8a-4084-80a3-b83be2fbd108")
     public static let color2 = PropertyKey<ColorConverter>("color2", "83595a76-1b17-4158-bcee-e702c3165caf")
