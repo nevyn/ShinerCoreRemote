@@ -112,8 +112,10 @@ func led(_ ctx: CGContext, _ p: CGPoint, _ radius: CGFloat, _ hue: RGB, _ level:
 }
 
 func write(_ name: String, pixels: Int, style: Style, shape: Shape) {
+    // App Store Connect rejects a default iOS icon with an alpha channel, even a fully opaque one.
+    let alpha: CGImageAlphaInfo = style == .standard && shape == .iosSquare ? .noneSkipLast : .premultipliedLast
     let ctx = CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
-                        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: alpha.rawValue)!
     ctx.interpolationQuality = .high
     ctx.scaleBy(x: CGFloat(pixels) / 1024, y: CGFloat(pixels) / 1024)
     draw(ctx, pixels: pixels, style: style, shape: shape)
