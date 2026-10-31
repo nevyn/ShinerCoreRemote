@@ -83,14 +83,18 @@ extension SingleLayerView {
 /// The selected layer drawn on its own, labelled so that nobody takes it for the whole strip.
 struct LayerPreview: View {
     let state: CoreState
+    /// Says "Layer N alone", where nothing else says that the preview isn't the whole strip.
+    var labeled = true
 
     var body: some View {
         let layer = state[CoreProps.layer] ?? 0
         VStack(alignment: .leading, spacing: 6) {
             StripPreview(looks: look.map { [$0] } ?? [], pixelCount: pixelCount, caption: caption)
-            Text("Layer \(layer) alone")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            if labeled {
+                Text("Layer \(layer) alone")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

@@ -108,8 +108,8 @@ struct LayerEditorView: View {
         }
         // Pinned, so the effect of a change shows while the controls below the fold are in reach.
         .safeAreaInset(edge: .top, spacing: 0) {
-            LayerPreview(state: state)
-                .frame(height: 84)  // the strip grows to fill whatever height it is offered
+            LayerPreview(state: state, labeled: false)
+                .frame(height: 64)  // the strip grows to fill whatever height it is offered
                 .padding([.horizontal, .top])
                 .padding(.bottom, 8)
                 .background(Color.groupedBackground)
