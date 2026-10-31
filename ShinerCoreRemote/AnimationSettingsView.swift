@@ -6,19 +6,35 @@ struct AnimationSettingsView: View {
     let session: CoreSession
 
     var body: some View {
-        let docs = session.state.documentation
+        let state = session.state
+        let docs = state.documentation
+        let animation = state[CoreProps.animation]
+        let animationDoc = animation.map(state.animationDoc(for:)) ?? .generic
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 PresetPicker(session: session)
                 LayerPicker(session: session)
+                LayerPreview(state: state)
                 Grid(horizontalSpacing: 12, verticalSpacing: 12) {
                     GridRow {
                         AnimationTile(session: session, options: docs?.animations ?? [])
                             .gridCellColumns(2)
                     }
                     GridRow {
-                        ColorTile(title: "Primary", session: session, key: CoreProps.color)
-                        ColorTile(title: "Secondary", session: session, key: CoreProps.color2)
+                        ColorTile(title: "Primary", session: session, key: CoreProps.color,
+                                  used: animationDoc.colors >= 1)
+                        ColorTile(title: "Secondary", session: session, key: CoreProps.color2,
+                                  used: animationDoc.colors >= 2)
+                    }
+                    if let animation, let note = Self.colorNote(animation: animation, colors: animationDoc.colors) {
+                        GridRow {
+                            Text(note)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 4)
+                                .gridCellColumns(2)
+                        }
                     }
                     GridRow {
                         SpeedTile(session: session)
@@ -28,9 +44,16 @@ struct AnimationSettingsView: View {
                         }
                         .availability(of: CoreProps.beatSync, in: session)
                     }
-                    GridRow {
-                        ParameterTile(title: "Tau", session: session, key: CoreProps.tau)
-                        ParameterTile(title: "Phi", session: session, key: CoreProps.phi)
+                    // Full width: parameter names such as "Counter-wave length" need the room.
+                    if let tau = animationDoc.tau {
+                        GridRow {
+                            ParameterTile(title: tau, session: session, key: CoreProps.tau).gridCellColumns(2)
+                        }
+                    }
+                    if let phi = animationDoc.phi {
+                        GridRow {
+                            ParameterTile(title: phi, session: session, key: CoreProps.phi).gridCellColumns(2)
+                        }
                     }
                     GridRow {
                         SettingTile("Blend mode", symbol: "square.stack.3d.down.right") {
@@ -46,6 +69,52 @@ struct AnimationSettingsView: View {
             .padding()
         }
         .background(Color.groupedBackground)
+    }
+}
+
+extension AnimationSettingsView {
+    /// Explains a dimmed color tile; nil when the animation reads both colors.
+    static func colorNote(animation: String, colors: Int) -> String? {
+        switch colors {
+        case 0: "\(animation) makes its own colors."
+        case 1: "\(animation) uses only the primary color."
+        default: nil
+        }
+    }
+}
+
+/// The selected layer drawn on its own, labelled so that nobody takes it for the whole strip.
+struct LayerPreview: View {
+    let state: CoreState
+
+    var body: some View {
+        let layer = state[CoreProps.layer] ?? 0
+        VStack(alignment: .leading, spacing: 6) {
+            StripPreview(looks: look.map { [$0] } ?? [], pixelCount: pixelCount, caption: caption)
+            Text("Layer \(layer) alone")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Drawn with Set rather than its blend mode: blended onto black, a Multiply or
+    /// Darken layer would show nothing at all.
+    private var look: LayerLook? {
+        guard var look = state.layerLook else { return nil }
+        look.blendMode = "Set"
+        return look
+    }
+
+    private var pixelCount: Int {
+        let count = state[CoreProps.ledCount] ?? 0
+        return count > 0 ? count : 60
+    }
+
+    private var caption: String? {
+        guard let animation = state[CoreProps.animation] else { return "" }
+        if animation == RenderLibrary.animationNames.first { return "Nothing plays on this layer" }
+        if RenderLibrary.animationDoc(named: animation) == nil { return "No preview for \(animation)" }
+        return nil
     }
 }
 
@@ -149,15 +218,40 @@ struct AnimationTile: View {
     }
 }
 
+/// A big swatch that opens the system color picker. Dimmed while the animation ignores
+/// the color, but still editable: other animations use it.
 struct ColorTile: View {
     let title: String
     let session: CoreSession
     let key: PropertyKey<ColorConverter>
+    var used = true
 
     var body: some View {
+        let color = session.binding(key, default: .black)
         SettingTile(title, symbol: "paintpalette") {
-            ColorPicker(title, selection: session.binding(key, default: .black))
-                .labelsHidden()
+            ZStack {
+                // The native well, stretched under the swatch, takes the taps and keeps the system picker.
+                GeometryReader { geo in
+                    ColorPicker(title, selection: color, supportsOpacity: false)
+                        .labelsHidden()
+                        .scaleEffect(x: geo.size.width / 24, y: geo.size.height / 24)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(color.wrappedValue)
+                    .strokeBorder(.secondary.opacity(0.3))
+                    .allowsHitTesting(false)
+            }
+            .frame(height: 56)
+            .clipShape(.rect(cornerRadius: 10))
+        }
+        .overlay {
+            // A veil rather than opacity, which would let the stretched well show through.
+            if !used {
+                Color.groupedSurface.opacity(0.6)
+                    .clipShape(.rect(cornerRadius: 16))
+                    .allowsHitTesting(false)
+            }
         }
         .availability(of: key, in: session)
     }
@@ -215,6 +309,17 @@ struct ParameterTile: View {
 #Preview("Animation") {
     let session = CoreSession(link: FakeCoreLink.demo())
     NavigationStack {
+        AnimationSettingsView(session: session)
+            .navigationTitle("Nevyn's jacket")
+    }
+    .task { await session.run() }
+}
+
+#Preview("Single color") {
+    let link = FakeCoreLink.demo()
+    link.values[CoreProps.animation.id] = "Single Wave"
+    let session = CoreSession(link: link)
+    return NavigationStack {
         AnimationSettingsView(session: session)
             .navigationTitle("Nevyn's jacket")
     }

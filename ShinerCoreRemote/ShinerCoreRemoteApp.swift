@@ -36,6 +36,15 @@ enum DemoMode: Equatable {
     /// `-demo-list`: the discovery list; `-demo-list-empty`: the list before any core shows up
     case list(empty: Bool)
 
+    /// `-demo-animation <name>`: the demo layer's animation; a name the render library
+    /// doesn't know shows the no-preview state.
+    static var animation: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let flag = args.firstIndex(of: "-demo-animation") else { return nil }
+        guard args.indices.contains(flag + 1) else { preconditionFailure("-demo-animation wants an animation name") }
+        return args[flag + 1]
+    }
+
     static var fromLaunchArguments: DemoMode? {
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-demo-offline") { return .offline }
@@ -84,6 +93,7 @@ struct DemoRoot: View {
         }
         .task {
             if mode == .offline { link.becomeUnreachable() }
+            if let animation = DemoMode.animation { link.values[CoreProps.animation.id] = animation }
             let session = CoreSession(link: link)
             self.session = session
             await session.run()
