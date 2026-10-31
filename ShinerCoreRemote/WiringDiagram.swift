@@ -100,6 +100,9 @@ private func label(_ s: String, bold: Bool = false, color: Color = .primary, siz
     Text(s).font(.system(size: size, weight: bold ? .bold : .regular, design: .monospaced)).foregroundColor(color)
 }
 
+/// Print on the case, which is light in both appearances.
+private let boardInk = Color(white: 0.4)
+
 /// Draws the board seen from the back: headers left and right, the Grove socket at the bottom.
 private func drawBoard(_ ctx: GraphicsContext, _ g: BoardGeometry, emphasis: [String: Color]) {
     let body = Path(roundedRect: g.rect, cornerRadius: 18)
@@ -120,7 +123,7 @@ private func drawBoard(_ ctx: GraphicsContext, _ g: BoardGeometry, emphasis: [St
             if let tint {
                 ctx.stroke(Path(ellipseIn: hole.insetBy(dx: -3, dy: -3)), with: .color(tint), lineWidth: 2)
             }
-            ctx.draw(label(name, bold: tint != nil, color: tint ?? .secondary),
+            ctx.draw(label(name, bold: tint != nil, color: tint ?? boardInk),
                      at: CGPoint(x: p.x - out * 12, y: p.y), anchor: out < 0 ? .leading : .trailing)
         }
     }
@@ -128,7 +131,7 @@ private func drawBoard(_ ctx: GraphicsContext, _ g: BoardGeometry, emphasis: [St
     let socket = CGRect(x: g.groveX(0) - 10, y: g.rect.maxY - 12, width: 80, height: 16)
     ctx.fill(Path(roundedRect: socket, cornerRadius: 2), with: .color(.white))
     ctx.stroke(Path(roundedRect: socket, cornerRadius: 2), with: .color(.gray), lineWidth: 1)
-    ctx.draw(label("Grove", color: .secondary, size: 8), at: CGPoint(x: socket.midX, y: socket.minY - 8))
+    ctx.draw(label("Grove", color: boardInk, size: 8), at: CGPoint(x: socket.midX, y: socket.minY - 8))
 }
 
 struct BoardFaceView: View {
