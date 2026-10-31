@@ -229,17 +229,20 @@ struct ColorTile: View {
 
     var body: some View {
         let color = session.binding(key, default: .black)
+        let known = session.state[key] != nil
         SettingTile(title, symbol: "paintpalette") {
             ZStack {
-                // The native well, stretched under the swatch, takes the taps and keeps the system picker.
-                GeometryReader { geo in
-                    ColorPicker(title, selection: color, supportsOpacity: false)
-                        .labelsHidden()
-                        .scaleEffect(x: geo.size.width / 24, y: geo.size.height / 24)
-                        .frame(width: geo.size.width, height: geo.size.height)
+                // The stretched native well takes the taps; absent until loaded, as dimming would show its ring through the swatch.
+                if known {
+                    GeometryReader { geo in
+                        ColorPicker(title, selection: color, supportsOpacity: false)
+                            .labelsHidden()
+                            .scaleEffect(x: geo.size.width / 24, y: geo.size.height / 24)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                    }
                 }
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(color.wrappedValue)
+                    .fill(known ? color.wrappedValue : Color.secondary.opacity(0.15))
                     .strokeBorder(.secondary.opacity(0.3))
                     .allowsHitTesting(false)
             }
