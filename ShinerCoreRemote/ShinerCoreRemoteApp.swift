@@ -6,7 +6,9 @@ struct MyApp: App {
     var body: some Scene {
         WindowGroup {
             #if DEBUG
-            if let demo = DemoMode.fromLaunchArguments {
+            if let screen = PlaygroundScreen.fromLaunchArguments {
+                PlaygroundRoot(screen: screen)
+            } else if let demo = DemoMode.fromLaunchArguments {
                 DemoRoot(mode: demo)
             } else {
                 CoreListView()
