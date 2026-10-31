@@ -5,20 +5,21 @@ struct CoreListView: View {
     @State private var browser: CoreBrowser
     @State private var selectedCore: DiscoveredCore?
     @State private var compactColumn = NavigationSplitViewColumn.sidebar
+    @State private var onboarding: OnboardingStart?
     @Environment(\.scenePhase) private var scenePhase
 
-    @MainActor init(browser: CoreBrowser = CoreBrowser()) {
+    /// `onboarding` opens the onboarding sheet at launch.
+    @MainActor init(browser: CoreBrowser = CoreBrowser(), onboarding: OnboardingStart? = nil) {
         _browser = State(initialValue: browser)
+        _onboarding = State(initialValue: onboarding)
     }
 
     var body: some View {
         NavigationSplitView(preferredCompactColumn: $compactColumn) {
             Group {
                 if browser.discovered.isEmpty {
-                    LookingForCores(bluetoothAvailable: browser.isBluetoothAvailable, tryDemo: {
-                        selectedCore = browser.demoCore
-                        compactColumn = .detail  // there is no List to push the selection
-                    })
+                    LookingForCores(bluetoothAvailable: browser.isBluetoothAvailable, tryDemo: openDemo,
+                                    learnMore: { onboarding = OnboardingStart() })
                 } else {
                     List(selection: $selectedCore) {
                         Section {
@@ -49,6 +50,7 @@ struct CoreListView: View {
             }
             .navigationTitle("Nearby cores")
             .toolbar {
+                Button("New to ShinerCore?", systemImage: "questionmark.circle") { onboarding = OnboardingStart() }
                 Button("Rescan", systemImage: "arrow.clockwise") { browser.refresh() }
             }
         } detail: {
@@ -57,6 +59,9 @@ struct CoreListView: View {
             } else {
                 Text("Select a core to continue")
             }
+        }
+        .sheet(item: $onboarding) { start in
+            OnboardingView(start: start, tryDemo: openDemo)
         }
         .onChange(of: compactColumn) { _, column in
             if column == .sidebar { selectedCore = nil }  // as a List does when its pushed row pops
@@ -72,6 +77,13 @@ struct CoreListView: View {
                 break
             }
         }
+    }
+}
+
+extension CoreListView {
+    private func openDemo() {
+        selectedCore = browser.demoCore
+        compactColumn = .detail  // the empty state has no List to push the selection
     }
 }
 
@@ -119,10 +131,11 @@ struct SignalStrengthBars: View {
     }
 }
 
-/// The empty list: what to do, while the scan runs, and a way into the demo core.
+/// The empty list: what to do, while the scan runs, and ways into the demo core and onboarding.
 struct LookingForCores: View {
     let bluetoothAvailable: Bool
     let tryDemo: () -> Void
+    let learnMore: () -> Void
 
     var body: some View {
         Group {
@@ -133,7 +146,7 @@ struct LookingForCores: View {
                     Text("Power up a core and hold it close to your phone.")
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
-                    demoButton.padding(.top, 24)
+                    buttons.padding(.top, 24)
                 }
                 .padding(.horizontal, 32)
             } else {
@@ -142,7 +155,7 @@ struct LookingForCores: View {
                 } description: {
                     Text("Turn on Bluetooth to find nearby cores.")
                 } actions: {
-                    demoButton
+                    buttons
                 }
             }
         }
@@ -152,10 +165,18 @@ struct LookingForCores: View {
 }
 
 private extension LookingForCores {
-    var demoButton: some View {
-        Button("Try the demo core", systemImage: "wand.and.stars", action: tryDemo)
-            .buttonStyle(.bordered)
-            .controlSize(.large)
+    var buttons: some View {
+        VStack(spacing: 12) {
+            Button(action: tryDemo) {
+                Label("Try the demo core", systemImage: "wand.and.stars").frame(maxWidth: .infinity)
+            }
+            Button(action: learnMore) {
+                Label("New to ShinerCore?", systemImage: "questionmark.circle").frame(maxWidth: .infinity)
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .frame(maxWidth: 280)
     }
 }
 
@@ -195,5 +216,5 @@ struct SearchingPulse: View {
 }
 
 #Preview("Empty, Bluetooth off") {
-    LookingForCores(bluetoothAvailable: false, tryDemo: {})
+    LookingForCores(bluetoothAvailable: false, tryDemo: {}, learnMore: {})
 }

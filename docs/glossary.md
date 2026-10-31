@@ -1,7 +1,7 @@
 # Glossary
 
 The firmware owns the vocabulary that the app shares with it (wiring, pin, role,
-claim, knob, target, layer gate, preset, layer, opacity, mesh):
+claim, knob, target, layer gate, preset, layer, opacity, mesh, build guide):
 [shinercore docs/glossary.md](https://github.com/nevyn/shinercore/blob/main/docs/glossary.md).
 Use those terms in code, docs, the app's texts and commits.
 

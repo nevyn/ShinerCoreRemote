@@ -33,6 +33,9 @@ enum DemoMode: Equatable {
     case offline
     /// `-demo-list`: the discovery list; `-demo-list-empty`: the list before any core shows up
     case list(empty: Bool)
+    /// `-demo-onboarding <page>` (1-3), or `-demo-build-guide <step> [board id]` (1-5;
+    /// the board defaults to atom-lite after step 1): onboarding open on that screen.
+    case onboarding(OnboardingStart)
 
     /// `-demo-animation <name>`: the demo layer's animation; a name the render library
     /// doesn't know shows the no-preview state.
@@ -63,8 +66,29 @@ enum DemoMode: Equatable {
     /// `-demo-legacy`: firmware that predates the layer summary.
     static var legacy: Bool { ProcessInfo.processInfo.arguments.contains("-demo-legacy") }
 
+    private static var onboarding: OnboardingStart? {
+        let args = ProcessInfo.processInfo.arguments
+        if let flag = args.firstIndex(of: "-demo-onboarding") {
+            let pages = OnboardingScreen.pages
+            guard args.indices.contains(flag + 1), let page = Int(args[flag + 1]), pages.indices.contains(page - 1) else {
+                preconditionFailure("-demo-onboarding wants a page, 1-\(pages.count)")
+            }
+            return OnboardingStart(screen: pages[page - 1])
+        }
+        guard let flag = args.firstIndex(of: "-demo-build-guide") else { return nil }
+        guard args.indices.contains(flag + 1), let raw = Int(args[flag + 1]), let step = BuildGuideStep(rawValue: raw) else {
+            preconditionFailure("-demo-build-guide wants a step, 1-\(BuildGuideStep.allCases.count)")
+        }
+        let board = args.indices.contains(flag + 2) && !args[flag + 2].hasPrefix("-") ? args[flag + 2] : nil
+        if let board, BoardLayout(board: board) == nil {
+            preconditionFailure("-demo-build-guide: unknown board \(board), want one of \(BoardLayout.all.map(\.id))")
+        }
+        return OnboardingStart(screen: .guide(step), board: board ?? (step == .board ? nil : BoardLayout.atomLite.id))
+    }
+
     static var fromLaunchArguments: DemoMode? {
         let args = ProcessInfo.processInfo.arguments
+        if let onboarding { return .onboarding(onboarding) }
         if args.contains("-demo-offline") { return .offline }
         if args.contains("-demo-list") { return .list(empty: false) }
         if args.contains("-demo-list-empty") { return .list(empty: true) }
@@ -95,6 +119,9 @@ struct DemoRoot: View {
         case .list(let empty):
             CoreListView(browser: CoreBrowser(previewCores: empty ? [] : Self.cores,
                                               linkFactory: { _ in FakeCoreLink.demo() }))
+        case .onboarding(let start):
+            CoreListView(browser: CoreBrowser(previewCores: [], linkFactory: { _ in FakeCoreLink.demo() }),
+                         onboarding: start)
         case .controls(let tab):
             controls(tab: tab)
         case .offline:
