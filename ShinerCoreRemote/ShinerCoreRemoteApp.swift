@@ -5,17 +5,20 @@ import ShinerCoreKit
 struct MyApp: App {
     var body: some Scene {
         WindowGroup {
-            #if DEBUG
-            if let screen = PlaygroundScreen.fromLaunchArguments {
-                PlaygroundRoot(screen: screen)
-            } else if let demo = DemoMode.fromLaunchArguments {
-                DemoRoot(mode: demo)
-            } else {
+            Group {
+                #if DEBUG
+                if let screen = PlaygroundScreen.fromLaunchArguments {
+                    PlaygroundRoot(screen: screen)
+                } else if let demo = DemoMode.fromLaunchArguments {
+                    DemoRoot(mode: demo)
+                } else {
+                    CoreListView()
+                }
+                #else
                 CoreListView()
+                #endif
             }
-            #else
-            CoreListView()
-            #endif
+            .tint(.accentColor)  // toggles and form pickers ignore the asset accent without it
         }
     }
 }
