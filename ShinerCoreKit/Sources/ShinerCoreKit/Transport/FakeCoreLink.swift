@@ -114,7 +114,15 @@ public final class FakeCoreLink: CoreLink {
         case atomEcho = "atom-echo", atomLite = "atom-lite", atomS3Lite = "atoms3-lite"
     }
 
-    /// A populated fake for previews, wired like the given board might be.
+    /// What the firmware's buildDocumentationJSON (Comms.h) sends: the names in
+    /// ShinyTypes.cpp and Animations.cpp, in firmware order.
+    static let demoDocumentation = #"{"blendModes":["Add","Subtract","Add Wrap","Subtract Wrap","Multiply","Dissolve","Average","Set","Screen","Lighten","Darken","Difference","Overlay","Color Dodge"],"animations":["Nothing","Static","Opposing Waves","Single Wave","Breathe","Rainbow","Comet","Scanner","Twinkle","Theater Chase","Color Wipe","Gradient Pulse","Sparkle","Beat Pulse"],"ledColorOrders":["RGB","GRB","BGR"]}"#
+
+    /// What the firmware's animationDocsJSON (ShinyTypes.cpp) sends for those animations.
+    static let demoAnimationDocs = #"[[0],[1],[2,"Wave length","Counter-wave length"],[1,"Wave length","Phase"],[2],[0,"Rainbows","Drift speed"],[2,"Tail length","Head width"],[2,"Width","Glow"],[2,"Density","Twinkle speed"],[2,"Spacing","Group size"],[2,"Wipe time"],[2,"Sharpness","Repeats"],[2,"Flash length","Density"],[1]]"#
+
+    /// A populated fake for previews, wired like the given board might be. Values
+    /// are in the firmware's wire formats, so screenshots show what a real core sends.
     public static func demo(board: DemoBoard = .atomEcho) -> FakeCoreLink {
         let link = FakeCoreLink(values: [
             CoreProps.mode.id: "1",
@@ -122,15 +130,15 @@ public final class FakeCoreLink: CoreLink {
             CoreProps.name.id: "Nevyn",
             CoreProps.color.id: "255 40 120",
             CoreProps.color2.id: "0 80 255",
-            CoreProps.speed.id: "2.5",
-            CoreProps.tau.id: "1.0",
-            CoreProps.phi.id: "0.5",
+            CoreProps.speed.id: "2.500",
+            CoreProps.tau.id: "10.000",
+            CoreProps.phi.id: "4.000",
             CoreProps.layer.id: "0",
             CoreProps.preset.id: "1",
             CoreProps.bootPreset.id: "0",
-            CoreProps.animation.id: "rainbow",
+            CoreProps.animation.id: "Gradient Pulse",
             CoreProps.beatSync.id: "0",
-            CoreProps.blendMode.id: "add",
+            CoreProps.blendMode.id: "Add",
             CoreProps.ledOrder.id: "GRB",
             CoreProps.ledCount.id: "144",
             CoreProps.mic.id: "1",
@@ -139,7 +147,8 @@ public final class FakeCoreLink: CoreLink {
             CoreProps.meshGroup.id: "kidsville",
             CoreProps.carouselBeats.id: "8",
             CoreProps.maxCurrent.id: "0",
-            CoreProps.documentation.id: #"{"blendModes":["add","multiply","overwrite"],"animations":["rainbow","pulse","sparkle","solid"],"ledColorOrders":["RGB","GRB","BGR"]}"#,
+            CoreProps.documentation.id: demoDocumentation,
+            CoreProps.animationDocs.id: demoAnimationDocs,
         ])
         let targets = #""targets":["brightness","speed","tau","phi","color1.r","color1.g","color1.b","color1.h","color1.s","color1.v","color2.r","color2.g","color2.b","color2.h","color2.s","color2.v"]"#
         let atomPins = #""pins":["G21","G25","G22","G19","G23","G33","G26","G32"]"#

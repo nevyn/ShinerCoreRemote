@@ -11,6 +11,7 @@ xcuserdata/
 
 **/*.xcodeproj/project.xcworkspace/xcshareddata/*
 !**/*.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+!**/*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
 
 **/*.playground/playground.xcworkspace/*
 !**/*.playground/playground.xcworkspace/xcshareddata

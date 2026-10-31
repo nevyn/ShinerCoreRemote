@@ -36,10 +36,12 @@ instead of retrying forever.
 
 `BLECoreLink` implements it over a `CBPeripheral`. `CoreBrowser` owns the
 `CBCentralManager`: scanning (foreground only; `refresh()` prunes
-powered-off cores), discovery (`DiscoveredCore` values, not live objects),
+powered-off cores), discovery (`DiscoveredCore` values, not live objects;
+signal bars live beside them in `signalBars`, smoothed by `SignalMeter`, so a
+changing RSSI never changes list identity),
 vending sessions, and forwarding central-level delegate callbacks to the
 right link. `FakeCoreLink` is the same contract scripted — previews, tests,
-and the app's `-demo`/`-demo-offline`/`-demo-list` launch arguments (see
+and the app's `-demo`/`-demo-offline`/`-demo-list`/`-demo-list-empty` launch arguments (see
 AGENTS.md) run the full stack against it.
 
 ## Session — the controller (`Session/`)
@@ -72,6 +74,33 @@ everything while not connected). Prop boxes take `(session, key)` and stay
 in the layout even when unavailable — dimmed via `.availability(of:in:)` —
 because structural stability is what keeps scrolling from jumping while
 characteristic reads trickle in.
+
+## Strip preview
+
+The Animation tab draws the selected layer as the strip would show it. The drawing
+comes from the firmware's render library, not from Swift: ShinerCoreKit depends on
+the firmware repository's SwiftPM package `ShinerRender`, pinned to a firmware commit
+(move the pin when the firmware's animations change, so previews follow), and only
+`Render/StripRenderer.swift` imports it. The library's C API is a contract that only
+grows; see the firmware's docs/rendering.md.
+
+* `RenderLibrary` addresses the library's animations and blend modes by name, so a
+  core on other firmware previews correctly wherever names match. `StripRenderer`
+  returns nil for an animation name the library doesn't know: no preview beats a
+  wrong one. An unknown blend mode blends as Add, as on the device.
+* `CoreState.layerLook` turns the selected layer's wire values into a `LayerLook`.
+  A layer's time is seconds / speed; a beat-synced layer and Beat Pulse play against
+  a steady 120 bpm beat, because the app hears no music.
+* `CoreState.animationDoc(for:)` says which colors an animation reads and what it
+  calls tau and phi. The core's `animationDocs` wins (matched by index to
+  `documentation.animations`; a count mismatch is reported and ignored), then the
+  render library's table by name, then generic "Tau"/"Phi" with both colors.
+* `StripPreview` (app target) draws pixels as dots with additive halos in a black
+  well, in both appearances. It shows the selected layer alone, drawn with Set,
+  because the app only sees the layer that the `layer` cursor selects. A
+  `PreviewClock` advances playback by the current speed each frame, so a speed
+  change alters the pace instead of jumping. Under Reduce Motion the preview holds a
+  still frame a third of the way into the cycle.
 
 ## Wiring
 

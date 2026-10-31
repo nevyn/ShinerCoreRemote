@@ -1,0 +1,14 @@
+{
+  "originHash" : "4a2e3b30d4186514d334327bd581dee86bdb7e4a0e29808099d89d4c188b05e2",
+  "pins" : [
+    {
+      "identity" : "shinercore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nevyn/shinercore",
+      "state" : {
+        "revision" : "26e94ad912050aaaa6b284c698f42037123c1fab"
+      }
+    }
+  ],
+  "version" : 3
+}

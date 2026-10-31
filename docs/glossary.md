@@ -11,3 +11,6 @@ App-only terms:
   colors), keyed by the firmware's board id. Not "board geometry" or "pinout".
 * **hold**: a closed switch keeping a setting (lights, preset) at its value; the app
   shows "Held by the switch on G25" and disables that control. Not "lock" or "override".
+* **strip preview**: the app's drawing of what a strip shows, rendered by the
+  firmware's render library. A preview, not a mirror: the core may run other firmware.
+  Not "simulator" or "virtual strip".

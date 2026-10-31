@@ -38,6 +38,11 @@ public struct Documentation: Equatable, Sendable, Decodable {
         case blendModes, animations, ledColorOrders
     }
 
+    /// Decodes the property's JSON. Throws a `DecodingError`; its `summary` names the failing key.
+    public init(json: String) throws {
+        self = try JSONDecoder().decode(Documentation.self, from: Data(json.utf8))
+    }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         blendModes = try c.decodeIfPresent([String].self, forKey: .blendModes) ?? []
@@ -47,10 +52,25 @@ public struct Documentation: Equatable, Sendable, Decodable {
 }
 
 public struct DocumentationConverter: PropertyConverter {
-    public static func convert(_ raw: String) -> Documentation? {
-        try? JSONDecoder().decode(Documentation.self, from: Data(raw.utf8))
-    }
+    /// Nil for a value that fails to decode; `CoreSession` reports why.
+    public static func convert(_ raw: String) -> Documentation? { try? Documentation(json: raw) }
     public static func unconvert(_ value: Documentation) -> String {
         preconditionFailure("documentation is read-only")
+    }
+}
+
+extension DecodingError {
+    /// The failing key path and what was wrong there, e.g.
+    /// "animations: Expected to decode Array<String> but found number instead."
+    public var summary: String {
+        let context: Context
+        switch self {
+        case .typeMismatch(_, let c), .valueNotFound(_, let c), .keyNotFound(_, let c), .dataCorrupted(let c):
+            context = c
+        @unknown default:
+            return String(describing: self)
+        }
+        let path = context.codingPath.map { $0.intValue.map(String.init) ?? $0.stringValue }.joined(separator: ".")
+        return path.isEmpty ? context.debugDescription : "\(path): \(context.debugDescription)"
     }
 }

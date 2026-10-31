@@ -18,10 +18,14 @@ public struct DiscoveredCore: Identifiable, Hashable, Sendable {
 public final class CoreBrowser: NSObject {
     public private(set) var discovered: [DiscoveredCore] = []
     public private(set) var isBluetoothAvailable = false
+    /// Signal bars (0-3, see `SignalMeter`) per discovered core, by id. Kept out of
+    /// `DiscoveredCore` so that a changing RSSI doesn't change the list's identity.
+    public private(set) var signalBars: [UUID: Int] = [:]
 
     @ObservationIgnored private var central: CBCentralManager?
     @ObservationIgnored private var peripherals: [UUID: CBPeripheral] = [:]
     @ObservationIgnored private var links: [UUID: WeakLink] = [:]
+    @ObservationIgnored private var meters: [UUID: SignalMeter] = [:]
     @ObservationIgnored private var wantsScan = false
     @ObservationIgnored private var previewLinkFactory: ((DiscoveredCore) -> any CoreLink)?
     @ObservationIgnored private let log = Logger(subsystem: "jpg.nevyn.shinerconf", category: "browser")
@@ -33,10 +37,14 @@ public final class CoreBrowser: NSObject {
         central = CBCentralManager(delegate: self, queue: nil)
     }
 
-    /// Preview/demo-only: canned cores and no Bluetooth; sessions come from
-    /// `linkFactory` (typically `{ _ in FakeCoreLink.demo() }`).
-    public init(previewCores: [DiscoveredCore], linkFactory: ((DiscoveredCore) -> any CoreLink)? = nil) {
-        discovered = previewCores
+    /// Preview/demo-only: canned cores at fixed RSSIs (dBm) and no Bluetooth; sessions
+    /// come from `linkFactory` (typically `{ _ in FakeCoreLink.demo() }`).
+    public init(previewCores: [(core: DiscoveredCore, rssi: Int)], linkFactory: ((DiscoveredCore) -> any CoreLink)? = nil) {
+        discovered = previewCores.map(\.core)
+        meters = Dictionary(uniqueKeysWithValues: previewCores.compactMap { core, rssi in
+            SignalMeter(rssi: rssi).map { (core.id, $0) }
+        })
+        signalBars = meters.mapValues(\.bars)
         isBluetoothAvailable = true
         previewLinkFactory = linkFactory
         super.init()
@@ -59,6 +67,8 @@ public final class CoreBrowser: NSObject {
         let live = Set(links.compactMap { $0.value.link != nil ? $0.key : nil })
         discovered.removeAll { !live.contains($0.id) }
         peripherals = peripherals.filter { live.contains($0.key) }
+        meters = meters.filter { live.contains($0.key) }
+        signalBars = signalBars.filter { live.contains($0.key) }
         scanIfPossible()
     }
 
@@ -87,7 +97,9 @@ public final class CoreBrowser: NSObject {
 
     private func scanIfPossible() {
         guard wantsScan, let central, central.state == .poweredOn else { return }
-        central.scanForPeripherals(withServices: [shinerServiceUUID])
+        // Duplicates keep RSSI updates coming for cores that are already listed.
+        central.scanForPeripherals(withServices: [shinerServiceUUID],
+                                   options: [CBCentralManagerScanOptionAllowDuplicatesKey: true])
     }
 }
 
@@ -107,6 +119,16 @@ extension CoreBrowser: @preconcurrency CBCentralManagerDelegate {
             log.info("Discovered \(core.name, privacy: .public)")
             discovered.append(core)
         }
+        updateSignal(of: core.id, rssi: RSSI.intValue)
+    }
+
+    private func updateSignal(of id: UUID, rssi: Int) {
+        if meters[id] == nil {
+            meters[id] = SignalMeter(rssi: rssi)
+        } else {
+            meters[id]?.add(rssi: rssi)
+        }
+        if let bars = meters[id]?.bars, signalBars[id] != bars { signalBars[id] = bars }
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
