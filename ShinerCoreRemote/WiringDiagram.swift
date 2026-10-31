@@ -4,6 +4,8 @@ import SwiftUI
 /// labels as printed on the case. App-owned and keyed by the firmware's board
 /// id; checked against the real hardware.
 struct BoardLayout {
+    /// The firmware's board id ("atom-lite").
+    let id: String
     let name: String
     let leftHeader: [String]   // top to bottom
     let rightHeader: [String]
@@ -12,32 +14,35 @@ struct BoardLayout {
     static let groveColorNames = ["black", "red", "yellow", "white"]
 
     static let atomLite = BoardLayout(
+        id: "atom-lite",
         name: "Atom Lite",
         leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
         rightHeader: ["G21", "G25", "5V", "G"],
         grove: ["G", "5V", "G26", "G32"])
     static let atomEcho = BoardLayout(
+        id: "atom-echo",
         name: "Atom Echo",
         leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
         rightHeader: ["G21", "G25", "5V", "G"],
         grove: ["G", "5V", "G26", "G32"])
     static let atomS3Lite = BoardLayout(
+        id: "atoms3-lite",
         name: "AtomS3 Lite",
         leftHeader: ["3V3", "G5", "G6", "G7", "G8"],
         rightHeader: ["G39", "G38", "5V", "G"],
         grove: ["G", "5V", "G2", "G1"])
 
+    /// Every board this app has a drawing of, in the order the build guide lists them.
+    static let all = [atomLite, atomEcho, atomS3Lite]
+
     /// Nil for a board this app has no drawing of.
     init?(board id: String) {
-        switch id {
-        case "atom-lite": self = .atomLite
-        case "atom-echo": self = .atomEcho
-        case "atoms3-lite": self = .atomS3Lite
-        default: return nil
-        }
+        guard let layout = Self.all.first(where: { $0.id == id }) else { return nil }
+        self = layout
     }
 
-    private init(name: String, leftHeader: [String], rightHeader: [String], grove: [String]) {
+    private init(id: String, name: String, leftHeader: [String], rightHeader: [String], grove: [String]) {
+        self.id = id
         self.name = name
         self.leftHeader = leftHeader
         self.rightHeader = rightHeader
@@ -45,6 +50,10 @@ struct BoardLayout {
     }
 
     func isGroveSignal(_ label: String) -> Bool { grove.dropFirst(2).contains(label) }
+
+    /// The yellow Grove wire's pin, which drives LEDs in every board's default wiring:
+    /// the build guide solders the strip's DIN to it.
+    var ledPin: String { grove[2] }
 
     func location(of label: String, grove onGrove: Bool) -> String {
         if onGrove, let i = grove.firstIndex(of: label) {
@@ -104,7 +113,7 @@ private func label(_ s: String, bold: Bool = false, color: Color = .primary, siz
 private let boardInk = Color(white: 0.4)
 
 /// Draws the board seen from the back: headers left and right, the Grove socket at the bottom.
-private func drawBoard(_ ctx: GraphicsContext, _ g: BoardGeometry, emphasis: [String: Color]) {
+private func drawBoard(_ ctx: GraphicsContext, _ g: BoardGeometry, emphasis: [String: Color], groveTint: Color? = nil) {
     let body = Path(roundedRect: g.rect, cornerRadius: 18)
     ctx.fill(body, with: .color(Color(white: 0.92)))
     ctx.stroke(body, with: .color(Color(white: 0.6)), lineWidth: 1)
@@ -131,12 +140,19 @@ private func drawBoard(_ ctx: GraphicsContext, _ g: BoardGeometry, emphasis: [St
     let socket = CGRect(x: g.groveX(0) - 10, y: g.rect.maxY - 12, width: 80, height: 16)
     ctx.fill(Path(roundedRect: socket, cornerRadius: 2), with: .color(.white))
     ctx.stroke(Path(roundedRect: socket, cornerRadius: 2), with: .color(.gray), lineWidth: 1)
-    ctx.draw(label("Grove", color: boardInk, size: 8), at: CGPoint(x: socket.midX, y: socket.minY - 8))
+    if let groveTint {
+        ctx.stroke(Path(roundedRect: socket.insetBy(dx: -4, dy: -4), cornerRadius: 5), with: .color(groveTint), lineWidth: 2.5)
+    }
+    ctx.draw(label("Grove", bold: groveTint != nil, color: groveTint ?? boardInk, size: groveTint == nil ? 8 : 10),
+             at: CGPoint(x: socket.midX, y: socket.minY - (groveTint == nil ? 8 : 12)))
 }
 
 struct BoardFaceView: View {
     let board: BoardLayout
+    /// Pins drawn bold in their color: header holes get a ring, Grove signal wires stay unfaded.
     let emphasis: [String: Color]
+    /// Outlines the Grove socket in this color.
+    var groveTint: Color?
 
     var body: some View {
         Canvas { ctx, size in
@@ -150,7 +166,7 @@ struct BoardFaceView: View {
                 ctx.draw(label(name, bold: tint != nil, color: tint ?? .secondary, size: 8),
                          at: CGPoint(x: x, y: g.groveY + 40))
             }
-            drawBoard(ctx, g, emphasis: emphasis.filter { !board.isGroveSignal($0.key) })
+            drawBoard(ctx, g, emphasis: emphasis.filter { !board.isGroveSignal($0.key) }, groveTint: groveTint)
         }
     }
 }
@@ -297,12 +313,95 @@ struct WiringDiagramView: View {
         ctx.draw(label("→ → →", bold: true, color: .pink, size: 10), at: CGPoint(x: body.midX, y: body.maxY + 10))
         for (x, name) in zip(legXs, ["G", "DIN", "5V"]) {
             ctx.fill(Path(roundedRect: CGRect(x: x - 7, y: legTipY - 2, width: 14, height: 10), cornerRadius: 2),
-                     with: .color(Color(red: 0.85, green: 0.65, blue: 0.3)))
+                     with: .color(copper))
             ctx.draw(label(name, size: 7), at: CGPoint(x: x, y: legTipY + 16))
         }
     }
 
 }
+
+/// A Grove cable cut in half, the halves' ends bared to the copper.
+struct GroveCableCutView: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let mid = size.height / 2 + 8
+            let cutX = size.width / 2
+            for (side, x) in [(-1.0, 12.0), (1.0, size.width - 48)] {
+                let body = CGRect(x: x, y: mid - 22, width: 36, height: 44)
+                ctx.fill(Path(roundedRect: body, cornerRadius: 4), with: .color(Color(white: 0.95)))
+                ctx.stroke(Path(roundedRect: body, cornerRadius: 4), with: .color(.gray), lineWidth: 1)
+                for (i, color) in BoardLayout.groveColors.enumerated() {
+                    let y = mid - 13.5 + CGFloat(i) * 9
+                    let from = side < 0 ? body.maxX : cutX + 16
+                    let to = side < 0 ? cutX - 16 : body.minX
+                    let bare = side < 0 ? CGRect(x: to, y: y - 1.5, width: 7, height: 3) : CGRect(x: from - 7, y: y - 1.5, width: 7, height: 3)
+                    ctx.fill(Path(roundedRect: bare, cornerRadius: 1.5), with: .color(copper))
+                    var wire = Path()
+                    wire.move(to: CGPoint(x: from, y: y))
+                    wire.addLine(to: CGPoint(x: to, y: y))
+                    strokeWire(ctx, wire, color)
+                }
+            }
+            var cut = Path()
+            cut.move(to: CGPoint(x: cutX, y: mid - 26))
+            cut.addLine(to: CGPoint(x: cutX, y: mid + 26))
+            ctx.stroke(cut, with: .color(.accentColor), style: StrokeStyle(lineWidth: 2, dash: [4, 4]))
+            ctx.draw(Image(systemName: "scissors"), at: CGPoint(x: cutX, y: mid - 40))
+        }
+        .foregroundStyle(Color.accentColor)
+        .accessibilityElement()
+        .accessibilityLabel("A Grove cable cut in the middle")
+    }
+}
+
+/// The start of an LED strip with the three Grove wires soldered to its pads: red to 5V,
+/// yellow to DIN, black to GND, at the end where the printed arrows start.
+struct StripSolderView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        Canvas { ctx, size in
+            let dark = colorScheme == .dark
+            let mid = size.height / 2 - 4
+            let strip = CGRect(x: 100, y: mid - 36, width: size.width - 100 + 8, height: 72)
+            ctx.fill(Path(roundedRect: strip, cornerRadius: 4), with: .color(Color(white: dark ? 0.2 : 0.98)))
+            ctx.stroke(Path(roundedRect: strip, cornerRadius: 4), with: .color(Color(white: dark ? 0.45 : 0.7)), lineWidth: 1)
+
+            let pads: [(name: String, wire: Color, y: CGFloat)] = [("5V", .red, mid - 21), ("DIN", .yellow, mid), ("GND", .black, mid + 21)]
+            let padX = strip.minX + 14
+            for pad in pads {
+                ctx.fill(Path(roundedRect: CGRect(x: padX - 8, y: pad.y - 6, width: 16, height: 12), cornerRadius: 2), with: .color(copper))
+                ctx.draw(label(pad.name, bold: true, size: 11), at: CGPoint(x: padX + 13, y: pad.y), anchor: .leading)
+            }
+            for (i, pad) in pads.enumerated() {
+                let startY = mid + CGFloat(i - 1) * 40
+                strokeWire(ctx, roundedPolyline([CGPoint(x: -4, y: startY), CGPoint(x: 40, y: startY),
+                                                  CGPoint(x: 70, y: pad.y), CGPoint(x: padX, y: pad.y)]), pad.wire)
+                ctx.fill(Path(ellipseIn: CGRect(x: padX - 5, y: pad.y - 5, width: 10, height: 10)), with: .color(Color(white: 0.78)))
+            }
+
+            let ledColor = Color(white: dark ? 0.85 : 0.96)
+            var x = strip.minX + 104
+            while x < size.width {
+                let led = CGRect(x: x - 15, y: mid - 15, width: 30, height: 30)
+                ctx.fill(Path(roundedRect: led, cornerRadius: 3), with: .color(ledColor))
+                ctx.stroke(Path(roundedRect: led, cornerRadius: 3), with: .color(Color(white: 0.6)), lineWidth: 1)
+                ctx.stroke(Path(ellipseIn: led.insetBy(dx: 7, dy: 7)), with: .color(Color(white: 0.7)), lineWidth: 1)
+                ctx.draw(Image(systemName: "arrow.right"), at: CGPoint(x: x - 36, y: mid))
+                x += 72
+            }
+            ctx.draw(Text("Solder here").font(.footnote.weight(.semibold)).foregroundColor(.accentColor),
+                     at: CGPoint(x: padX + 8, y: strip.maxY + 16))
+            ctx.draw(Text("Arrows point away from Data In").font(.footnote).foregroundColor(.secondary),
+                     at: CGPoint(x: size.width - 4, y: strip.minY - 16), anchor: .trailing)
+        }
+        .foregroundStyle(.pink)
+        .accessibilityElement()
+        .accessibilityLabel("The red wire soldered to 5V, yellow to DIN and black to GND, at the end of the strip where the arrows start")
+    }
+}
+
+private let copper = Color(red: 0.85, green: 0.65, blue: 0.3)
 
 /// Numbered wiring instructions. Without a layout (an unknown board) the
 /// steps name bare pin labels.
@@ -345,6 +444,9 @@ struct WiringSteps: View {
             WiringSteps(layout: .atomEcho, boardName: "Atom Echo", pin: "G26", kind: .leds)
             WiringDiagramView(board: .atomS3Lite, pin: "G38", kind: .switch, contextLED: "G2").frame(height: 340)
             WiringSteps(layout: nil, boardName: "atoms3-lite", pin: "G38", kind: .switch)
+            BoardFaceView(board: .atomS3Lite, emphasis: ["G2": RoleKind.leds.tint], groveTint: RoleKind.leds.tint).frame(height: 200)
+            GroveCableCutView().frame(height: 110)
+            StripSolderView().frame(height: 150)
         }
         .padding()
     }
