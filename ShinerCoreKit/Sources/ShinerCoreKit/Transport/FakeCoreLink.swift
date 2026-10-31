@@ -116,10 +116,10 @@ public final class FakeCoreLink: CoreLink {
 
     /// What the firmware's buildDocumentationJSON (Comms.h) sends: the names in
     /// ShinyTypes.cpp and Animations.cpp, in firmware order.
-    static let demoDocumentation = #"{"blendModes":["Add","Subtract","Add Wrap","Subtract Wrap","Multiply","Dissolve","Average","Set","Screen","Lighten","Darken","Difference","Overlay","Color Dodge"],"animations":["Nothing","Static","Opposing Waves","Single Wave","Breathe","Rainbow","Comet","Scanner","Twinkle","Theater Chase","Color Wipe","Gradient Pulse","Sparkle","Beat Pulse"],"ledColorOrders":["RGB","GRB","BGR"]}"#
+    nonisolated static let demoDocumentation = #"{"blendModes":["Add","Subtract","Add Wrap","Subtract Wrap","Multiply","Dissolve","Average","Set","Screen","Lighten","Darken","Difference","Overlay","Color Dodge"],"animations":["Nothing","Static","Opposing Waves","Single Wave","Breathe","Rainbow","Comet","Scanner","Twinkle","Theater Chase","Color Wipe","Gradient Pulse","Sparkle","Beat Pulse"],"ledColorOrders":["RGB","GRB","BGR"]}"#
 
     /// What the firmware's animationDocsJSON (ShinyTypes.cpp) sends for those animations.
-    static let demoAnimationDocs = #"[[0],[1],[2,"Wave length","Counter-wave length"],[1,"Wave length","Phase"],[2],[0,"Rainbows","Drift speed"],[2,"Tail length","Head width"],[2,"Width","Glow"],[2,"Density","Twinkle speed"],[2,"Spacing","Group size"],[2,"Wipe time"],[2,"Sharpness","Repeats"],[2,"Flash length","Density"],[1]]"#
+    nonisolated static let demoAnimationDocs = #"[[0],[1],[2,"Wave length","Counter-wave length"],[1,"Wave length","Phase"],[2],[0,"Rainbows","Drift speed"],[2,"Tail length","Head width"],[2,"Width","Glow"],[2,"Density","Twinkle speed"],[2,"Spacing","Group size"],[2,"Wipe time"],[2,"Sharpness","Repeats"],[2,"Flash length","Density"],[1]]"#
 
     /// A populated fake for previews, wired like the given board might be. Values
     /// are in the firmware's wire formats, so screenshots show what a real core sends.
