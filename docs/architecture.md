@@ -103,6 +103,15 @@ everything while not connected).
   A core without `layers`, or with one that can't be read, gets `SingleLayerView`
   (layer chips, "Layer N alone") in place of the stack.
 * **Wiring**: see below.
+* **Onboarding** (`OnboardingView`, `BuildGuideView`): a sheet over the core list, opened
+  by "New to ShinerCore?" in the empty state and the list's "?" button. Three pages (what
+  ShinerCore is, the four steps of getting started, the demo core) and the build guide,
+  which connects an LED strip to a board in five steps. The story and its wording are the
+  firmware's docs/getting-started.md. It persists nothing, like the rest of the app: no
+  "seen it" flag, so it never opens by itself; the empty list is where a newcomer lands,
+  and the way in stays one tap away for everyone. The build guide draws with the Wiring
+  tab's board layouts (`BoardLayout.all`), so it lists exactly the boards that the app can
+  draw, and names the LED pin through the layout (`ledPin`, `location(of:grove:)`).
 * **Setup**: owner, power-on preset, LED strip, sound and mesh: what is set once. Prop boxes take `(session, key)` and stay
 in the layout even when unavailable — dimmed via `.availability(of:in:)` —
 because structural stability is what keeps scrolling from jumping while
