@@ -2,13 +2,16 @@ import SwiftUI
 import ShinerCoreKit
 
 struct CoreControlsView: View {
-    enum Tab: String, CaseIterable { case animation, core, mesh, wiring }
+    enum Tab: String, CaseIterable { case play, wiring, setup }
 
     let session: CoreSession
     @State private var tab: Tab
+    /// The layer whose editor Play opens with.
+    private let editing: Int?
 
-    init(session: CoreSession, tab: Tab = .animation) {
+    init(session: CoreSession, tab: Tab = .play, editing: Int? = nil) {
         self.session = session
+        self.editing = editing
         _tab = State(initialValue: tab)
     }
 
@@ -16,22 +19,18 @@ struct CoreControlsView: View {
         // .disabled sits on the tab contents, not the TabView, so the user
         // can still switch tabs while reconnecting.
         TabView(selection: $tab) {
-            AnimationSettingsView(session: session)
+            PlayView(session: session, editing: editing)
                 .disabled(session.connection != .connected)
-                .tabItem { Label("Animation", systemImage: "sparkles") }
-                .tag(Tab.animation)
-            CoreSettingsView(session: session)
-                .disabled(session.connection != .connected)
-                .tabItem { Label("Core", systemImage: "gearshape") }
-                .tag(Tab.core)
-            MeshSettingsView(session: session)
-                .disabled(session.connection != .connected)
-                .tabItem { Label("Mesh", systemImage: "antenna.radiowaves.left.and.right") }
-                .tag(Tab.mesh)
+                .tabItem { Label("Play", systemImage: "sparkles") }
+                .tag(Tab.play)
             WiringView(session: session)
                 .disabled(session.connection != .connected)
                 .tabItem { Label("Wiring", systemImage: "cable.connector") }
                 .tag(Tab.wiring)
+            SetupView(session: session)
+                .disabled(session.connection != .connected)
+                .tabItem { Label("Setup", systemImage: "slider.horizontal.3") }
+                .tag(Tab.setup)
         }
         .safeAreaInset(edge: .top, spacing: 0) { banner }
     }
@@ -69,35 +68,19 @@ struct CoreControlsView: View {
     }
 }
 
-/// Properties of the physical core itself, independent of animation.
-struct CoreSettingsView: View {
+/// The things set once: who owns the core, its LED strip, sound and the mesh.
+struct SetupView: View {
     let session: CoreSession
 
     var body: some View {
         let state = session.state
-        let lightsHeldBy = state.lightsHold?.pin
+        let meshOff = (state[CoreProps.mesh] ?? 0) == 0
         Form {
             Section {
-                Toggle(isOn: session.boolBinding(CoreProps.mode)) {
-                    Text("Lights on")
-                    if let lightsHeldBy { Text("Held by the switch on \(lightsHeldBy)") }
-                }
-                .disabled(lightsHeldBy != nil)
-                .availability(of: CoreProps.mode, in: session)
                 LabeledContent("Owner") {
                     CommitField("Your name", session: session, key: CoreProps.name)
                 }
                 .availability(of: CoreProps.name, in: session)
-                VStack(alignment: .leading) {
-                    LabeledContent("Brightness",
-                                   value: (Double(state[CoreProps.brightness] ?? 0) / 255).formatted(.percent.precision(.fractionLength(0))))
-                    Slider(value: Binding(
-                        get: { Double(state[CoreProps.brightness] ?? 0) },
-                        set: { session.set(CoreProps.brightness, to: Int($0.rounded())) }
-                    ), in: 0 ... 255)
-                    .accessibilityLabel("Brightness")
-                }
-                .availability(of: CoreProps.brightness, in: session)
                 Picker("When powered on", selection: session.binding(CoreProps.bootPreset, default: -1)) {
                     Text("Resume as it was").tag(-1)
                     ForEach(0 ..< CoreProps.presetCount, id: \.self) { Text("Lights on, preset \($0)").tag($0) }
@@ -147,6 +130,25 @@ struct CoreSettingsView: View {
             } footer: {
                 Text("Needed for beat sync and Beat Pulse.")
             }
+
+            Section {
+                Toggle("Mesh radio", isOn: session.boolBinding(CoreProps.mesh))
+                    .availability(of: CoreProps.mesh, in: session)
+                Toggle("Play the shared show", isOn: session.boolBinding(CoreProps.meshShow))
+                    .disabled(meshOff)
+                    .availability(of: CoreProps.meshShow, in: session)
+                LabeledContent("Group") {
+                    CommitField("Everyone", session: session, key: CoreProps.meshGroup)
+                }
+                .disabled(meshOff)
+                .availability(of: CoreProps.meshGroup, in: session)
+                // carouselBeats is deliberately absent: the firmware doesn't
+                // sync it between cores yet, so exposing it invites desync.
+            } header: {
+                Text("Mesh")
+            } footer: {
+                Text("Cores in the same group sync with each other and take turns choosing the show. Leave the group empty to join everyone else who left it empty.")
+            }
         }
         .formStyle(.grouped)
     }
@@ -167,34 +169,6 @@ enum PowerCap {
     }
 }
 
-/// ESP-NOW mesh sync: the radio itself, and the shared preset carousel.
-struct MeshSettingsView: View {
-    let session: CoreSession
-
-    var body: some View {
-        let meshOff = (session.state[CoreProps.mesh] ?? 0) == 0
-        Form {
-            Section {
-                Toggle("Mesh radio", isOn: session.boolBinding(CoreProps.mesh))
-                    .availability(of: CoreProps.mesh, in: session)
-                Toggle("Play the shared show", isOn: session.boolBinding(CoreProps.meshShow))
-                    .disabled(meshOff)
-                    .availability(of: CoreProps.meshShow, in: session)
-                LabeledContent("Group") {
-                    CommitField("Everyone", session: session, key: CoreProps.meshGroup)
-                }
-                .disabled(meshOff)
-                .availability(of: CoreProps.meshGroup, in: session)
-                // carouselBeats is deliberately absent: the firmware doesn't
-                // sync it between cores yet, so exposing it invites desync.
-            } footer: {
-                Text("Cores in the same group sync with each other and take turns choosing the show. Leave the group empty to join everyone else who left it empty.")
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
 #Preview("Connected") {
     let session = CoreSession(link: FakeCoreLink.demo())
     NavigationStack {
@@ -204,32 +178,10 @@ struct MeshSettingsView: View {
     .task { await session.run() }
 }
 
-/// The Atom Lite demo's G22 switch also holds preset 0 on the Animation tab.
-#Preview("Held by switches") {
-    let link = FakeCoreLink.demo(board: .atomLite)
-    link.values[CoreProps.pinStatus.id] = "0306004dff"  // G25 and G22 closed
-    link.values[CoreProps.mode.id] = "0"
-    let session = CoreSession(link: link)
-    return NavigationStack {
-        CoreControlsView(session: session, tab: .core)
-            .navigationTitle("Vindarnas hus")
-    }
-    .task { await session.run() }
-}
-
-#Preview("Core tab") {
+#Preview("Setup") {
     let session = CoreSession(link: FakeCoreLink.demo())
     NavigationStack {
-        CoreControlsView(session: session, tab: .core)
-            .navigationTitle("Nevyn's jacket")
-    }
-    .task { await session.run() }
-}
-
-#Preview("Mesh tab") {
-    let session = CoreSession(link: FakeCoreLink.demo())
-    NavigationStack {
-        CoreControlsView(session: session, tab: .mesh)
+        CoreControlsView(session: session, tab: .setup)
             .navigationTitle("Nevyn's jacket")
     }
     .task { await session.run() }
