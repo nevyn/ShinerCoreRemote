@@ -98,6 +98,8 @@ hand-edit the pbxproj to add files.
   makes captures tap-free. A new tab
   needs an entry in `SHOTS` in Scripts/screenshots.sh too, or the store listing keeps
   showing the app without it.
+* **The app icon** is drawn by `Scripts/make-icon.swift` (run from the repo root): the iOS
+  icon with its dark and tinted variants, and every Mac size. Edit the script, not the PNGs.
 * **The whole screenshot set**: `Scripts/screenshots.sh [iphone|ipad|all]` builds,
   boots, launches each demo argument and captures into `screenshots/<ASC display type>/`
   at the exact pixel sizes App Store Connect accepts.
