@@ -54,6 +54,33 @@ import Foundation
         await h.stop()
     }
 
+    @Test func perLayerReadFromBeforeACursorMoveDoesNotLand() async throws {
+        let h = await SessionHarness()
+        h.fake.republishesCursorLayer = false
+        h.fake.deferReads = true
+        h.session.refresh()  // per-layer reads capture layer 0's values
+        h.session.selectLayer(1)
+        h.fake.deliverPendingReads()  // layer 0's answers arrive around the move
+        await settle { !h.fake.written.isEmpty }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(h.session.state[CoreProps.animation] == "Comet", "from the summary, not layer 0's Gradient Pulse")
+        #expect(h.session.state.rawValue(of: CoreProps.color) == "255 255 255")
+        await h.stop()
+    }
+
+    @Test func perLayerReadFromBeforeAPresetSwitchDoesNotLand() async throws {
+        let h = await SessionHarness()
+        h.fake.republishesCursorLayer = false
+        h.fake.deferReads = true
+        h.session.refresh()
+        h.session.selectPreset(2)
+        h.fake.deliverPendingReads()
+        await settle { !h.fake.written.isEmpty }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(h.session.state[CoreProps.animation] == nil, "loading, not preset 1's Gradient Pulse")
+        await h.stop()
+    }
+
     @Test func selectingShowsTheLayerAtOnceAndKeepsItOnceRead() async {
         let h = await SessionHarness()
         h.session.selectLayer(1)

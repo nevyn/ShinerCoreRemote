@@ -82,6 +82,9 @@ public final class FakeCoreLink: CoreLink {
     public private(set) var reachable = true
     /// When set, writes fail with this error.
     public var writeError: CoreLinkError?
+    /// False holds back the per-layer notifications after a cursor move, as the
+    /// firmware's flush limiter does for up to half a second.
+    public var republishesCursorLayer = true
     /// Writes to these properties fail with the given error.
     public var writeErrors: [PropertyID: CoreLinkError] = [:]
     /// When true, `read` responses queue up until `deliverPendingReads()`,
@@ -134,6 +137,7 @@ public final class FakeCoreLink: CoreLink {
     }
 
     private func republishCursorLayer() {
+        guard republishesCursorLayer else { return }
         for id in CoreProps.perLayer where exposed.contains(id) {
             emit.yield(.valueChanged(id, presets[presetCursor][layerCursor][id]!))
         }

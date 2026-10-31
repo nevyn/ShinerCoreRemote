@@ -257,12 +257,13 @@ public final class CoreSession {
         throttled[key.id] = (key.name, timer)
     }
 
-    /// For props whose device-side change fans out to other props
-    /// (layer, preset): write immediately, then refetch everything once acked.
+    /// For the cursors (layer, preset), whose device-side change fans out to the
+    /// per-layer props: write immediately, then refetch everything once acked.
     /// Edits still throttled go first, because they were made for the old cursor.
+    /// Per-layer values read before the move describe the old layer, so the write holds them.
     public func select<C>(_ key: PropertyKey<C>, _ value: C.ValueType) {
         flushThrottled()
-        write(key, value, then: { [weak self] in self?.refresh() })
+        write(key, value, holds: CoreProps.perLayer, then: { [weak self] in self?.refresh() })
     }
 
     /// Queues the value now, even when it equals the current one: after a cursor move,

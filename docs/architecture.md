@@ -79,8 +79,9 @@ prop is throttled, queued or in flight, reads and notifications of that prop are
 dropped. The device answers reads in order, so a read requested before a write went
 out is stale even when it arrives after the ack; the session tracks outstanding reads
 per prop and drops exactly those responses, so a refetch can never yank a slider
-back. A write can also hold other props whose device values it changes (a layer move
-holds the summary, the cursor and the per-layer props). Errors land in `lastError`,
+back. A write can also hold other props whose device values it changes: a cursor
+write holds the per-layer props, and a layer move holds those, the cursor and the
+summary. Errors land in `lastError`,
 rendered by the UI, dismissible.
 
 ## Views (app target)
