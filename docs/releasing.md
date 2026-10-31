@@ -36,9 +36,9 @@ previews the plan and the readiness checks without changing anything.
 Review notes carry over from the previous version. Read them with
 `asc review details-for-version --version-id ID` and update the "changes since"
 part with `asc review details-update --id DETAIL_ID --notes …`. The notes tell
-the reviewer that the app needs ShinerCore hardware, that an empty core list is
-the expected state without it, where to watch a video of it working, and that
-there is no account or server.
+the reviewer that the app needs ShinerCore hardware, that "Try the demo core" in
+the empty core list (or the Demo core row) shows every screen without it, where to
+watch a video of it working, and that there is no account or server.
 
 ## 3. Screenshots
 

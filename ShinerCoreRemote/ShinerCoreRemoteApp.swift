@@ -87,7 +87,7 @@ struct DemoRoot: View {
     private static let cores = [
         (DiscoveredCore(id: UUID(), name: "Vindarnas hus"), -58),
         (DiscoveredCore(id: UUID(), name: "Nevyn's jacket"), -71),
-        (DiscoveredCore(id: UUID(), name: "Demo core"), -83),
+        (DiscoveredCore(id: UUID(), name: "Porch lights"), -83),
     ]
 
     var body: some View {

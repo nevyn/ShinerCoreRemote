@@ -4,6 +4,7 @@ import ShinerCoreKit
 struct CoreListView: View {
     @State private var browser: CoreBrowser
     @State private var selectedCore: DiscoveredCore?
+    @State private var compactColumn = NavigationSplitViewColumn.sidebar
     @Environment(\.scenePhase) private var scenePhase
 
     @MainActor init(browser: CoreBrowser = CoreBrowser()) {
@@ -11,10 +12,13 @@ struct CoreListView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(preferredCompactColumn: $compactColumn) {
             Group {
                 if browser.discovered.isEmpty {
-                    LookingForCores(bluetoothAvailable: browser.isBluetoothAvailable)
+                    LookingForCores(bluetoothAvailable: browser.isBluetoothAvailable, tryDemo: {
+                        selectedCore = browser.demoCore
+                        compactColumn = .detail  // there is no List to push the selection
+                    })
                 } else {
                     List(selection: $selectedCore) {
                         Section {
@@ -29,6 +33,12 @@ struct CoreListView: View {
                             }
                         } footer: {
                             Text("Missing one? Power it up and hold it close.")
+                        }
+                        Section {
+                            NavigationLink(value: browser.demoCore) {
+                                CoreRow(name: browser.demoCore.name, subtitle: "No hardware needed",
+                                        symbol: "wand.and.stars", bars: nil)
+                            }
                         }
                     }
                     // Pruning is explicit, never automatic: a core connected to
@@ -48,6 +58,9 @@ struct CoreListView: View {
                 Text("Select a core to continue")
             }
         }
+        .onChange(of: compactColumn) { _, column in
+            if column == .sidebar { selectedCore = nil }  // as a List does when its pushed row pops
+        }
         .onAppear { browser.startScanning() }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -64,18 +77,25 @@ struct CoreListView: View {
 
 struct CoreRow: View {
     let name: String
+    var subtitle: String?
+    var symbol = "sparkles"
     /// 0-3, or nil before the first usable RSSI.
     let bars: Int?
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "sparkles")
+            Image(systemName: symbol)
                 .font(.title3)
                 .foregroundStyle(.tint)
                 .frame(width: 40, height: 40)
                 .background(Color.accentColor.opacity(0.15), in: .circle)
                 .accessibilityHidden(true)
-            Text(name).font(.headline)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(.headline)
+                if let subtitle {
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
             Spacer()
             if let bars { SignalStrengthBars(bars: bars) }
         }
@@ -99,9 +119,10 @@ struct SignalStrengthBars: View {
     }
 }
 
-/// The empty list: what to do, while the scan runs.
+/// The empty list: what to do, while the scan runs, and a way into the demo core.
 struct LookingForCores: View {
     let bluetoothAvailable: Bool
+    let tryDemo: () -> Void
 
     var body: some View {
         Group {
@@ -112,15 +133,29 @@ struct LookingForCores: View {
                     Text("Power up a core and hold it close to your phone.")
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
+                    demoButton.padding(.top, 24)
                 }
                 .padding(.horizontal, 32)
             } else {
-                ContentUnavailableView("Bluetooth is off", systemImage: "exclamationmark.triangle",
-                                       description: Text("Turn on Bluetooth to find nearby cores."))
+                ContentUnavailableView {
+                    Label("Bluetooth is off", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text("Turn on Bluetooth to find nearby cores.")
+                } actions: {
+                    demoButton
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.groupedBackground)
+    }
+}
+
+private extension LookingForCores {
+    var demoButton: some View {
+        Button("Try the demo core", systemImage: "wand.and.stars", action: tryDemo)
+            .buttonStyle(.bordered)
+            .controlSize(.large)
     }
 }
 
@@ -151,10 +186,14 @@ struct SearchingPulse: View {
     CoreListView(browser: CoreBrowser(previewCores: [
         (DiscoveredCore(id: UUID(), name: "Nevyn's jacket"), -52),
         (DiscoveredCore(id: UUID(), name: "Vindarnas hus"), -70),
-        (DiscoveredCore(id: UUID(), name: "Demo core"), -84),
+        (DiscoveredCore(id: UUID(), name: "Porch lights"), -84),
     ]))
 }
 
 #Preview("Empty") {
     CoreListView(browser: CoreBrowser(previewCores: []))
+}
+
+#Preview("Empty, Bluetooth off") {
+    LookingForCores(bluetoothAvailable: false, tryDemo: {})
 }

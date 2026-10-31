@@ -16,5 +16,8 @@ App-only terms:
   Not "simulator" or "virtual strip".
 * **composite**: the strip preview of every layer, blended and at the core's brightness:
   what the strip shows. Play's hero draws it; everything else draws one layer alone.
+* **demo core**: the simulated core behind "Try the demo core" and the Demo core row,
+  for trying the app without hardware; its strip preview stands in for the lights.
+  Not "fake core" in the app's texts (`FakeCoreLink` is the code's name for the model).
 * **stack**: a preset's layers that play (not Nothing), as Play lists them, front-most
   first. Not "layer list".

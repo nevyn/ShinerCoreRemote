@@ -49,7 +49,11 @@ layer under them; moving a cursor republishes them as notifications. `layers` an
 `gates` and `neighborLayers` stand in for switches and the mesh carousel, and a write
 yields once before acking, as a round trip would. Assigning `values` routes into the
 model, so tests and previews still set a property by id. The model has no DEBUG-only
-parts: it is meant to ship as demo mode.
+parts, because it ships as the demo core: `CoreBrowser.demoCore` is a fixed
+`DiscoveredCore` that never appears in `discovered`, and `makeSession(for:)` answers
+it with a session over a fresh `FakeCoreLink.demo()`, on a real browser too. Each
+visit starts from the same state and nothing persists. A browser creates its
+`CBCentralManager` on first use, so the demo core never touches Bluetooth.
 
 ## Session — the controller (`Session/`)
 
@@ -86,7 +90,8 @@ rendered by the UI, dismissible.
 
 ## Views (app target)
 
-`CoreListView` (browser + scan lifecycle) → `CoreDetailView` (owns the
+`CoreListView` (browser + scan lifecycle; the demo core as a row below the nearby
+cores, and as "Try the demo core" in the empty state) → `CoreDetailView` (owns the
 session via `.task(id:)`, re-reads on scenePhase reactivation) →
 `CoreControlsView` (Play/Wiring/Setup tabs, connection banner, disables
 everything while not connected).
