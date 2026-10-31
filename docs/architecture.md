@@ -146,8 +146,10 @@ docs/ble-comms.md, "The layer summary".
 
 * The session reads `layers` at connect and whenever `layersRevision` changes, and
   decodes it into `LayerSummary` once `documentation` names its indices. A value
-  that fails to decode sets `layerSummaryError` (the failing line, in `lastError`)
-  and Play falls back to the single-layer view.
+  that fails to decode sets `layerSummaryError` (the failing line, in `lastError`),
+  and a failed read sets `layerSummaryReadFailed`; either way Play falls back to the
+  single-layer view until a later read succeeds. A read still outstanding shows
+  placeholder rows instead.
 * The summary says whose preset plays: the core's own (`P n`) or a neighbor's while
   the mesh carousel plays one (`M`). The carousel takes turns every few beats, so
   `ownLayerSummary` keeps the last own summary: the stack lists the core's own layers

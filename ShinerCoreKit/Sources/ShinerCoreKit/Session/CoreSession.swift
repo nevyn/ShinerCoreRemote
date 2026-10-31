@@ -111,6 +111,7 @@ public final class CoreSession {
             applyDeviceValue(id, raw)
         case .readFailed(let id, let error):
             finishRead(of: id)
+            if id == CoreProps.layers.id { state.layerSummaryReadFailed = true }
             lastError = "Couldn't read \(id): \(error.description)"
         }
     }
@@ -164,6 +165,7 @@ public final class CoreSession {
                 lastError = "Core sent unreadable pin status: \(error)"
             }
         case CoreProps.layers.id:
+            state.layerSummaryReadFailed = false
             decodeLayers()
         case CoreProps.layersRevision.id:
             guard let revision = Int(raw) else {

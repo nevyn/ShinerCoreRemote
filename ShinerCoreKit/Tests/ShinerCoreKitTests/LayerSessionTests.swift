@@ -185,6 +185,37 @@ import Foundation
         await h.stop()
     }
 
+    @Test func failedSummaryReadFallsBackUntilARevisionBringsItBack() async {
+        let fake = FakeCoreLink.demo()
+        fake.readErrors[CoreProps.layers.id] = CoreLinkError("Reading is not permitted.")
+        let session = CoreSession(link: fake, throttle: .milliseconds(10))
+        let runner = Task { await session.run() }
+        await settle { session.state.layerSummaryReadFailed }
+        #expect(session.state.layerSummaryReadFailed)
+        #expect(session.state.layerSummary == nil)
+
+        fake.readErrors = [:]
+        fake.setLayer(FakeCoreLink.layer("Rainbow", color: "0 0 0", speed: 3), preset: 1, slot: 5)  // bumps the revision
+        await settle { session.state.stack?.count == 4 }
+        #expect(!session.state.layerSummaryReadFailed)
+        #expect(animations(session.state.stack) == ["Gradient Pulse", "Comet", "Sparkle", "Rainbow"])
+        runner.cancel()
+        await settle { fake.disconnectCount > 0 }
+    }
+
+    @Test func outstandingSummaryReadIsNotAFailure() async {
+        let fake = FakeCoreLink.demo()
+        fake.deferReads = true
+        let session = CoreSession(link: fake, throttle: .milliseconds(10))
+        let runner = Task { await session.run() }
+        await settle { fake.readRequests.contains(CoreProps.layers.id) }
+        try? await Task.sleep(for: .milliseconds(20))
+        #expect(session.state.layerSummary == nil)
+        #expect(!session.state.layerSummaryReadFailed, "still loading")
+        runner.cancel()
+        await settle { fake.disconnectCount > 0 }
+    }
+
     @Test func failedCursorWriteKeepsDependentWritesBack() async {
         let h = await SessionHarness()
         h.fake.writeError = CoreLinkError("device said no")

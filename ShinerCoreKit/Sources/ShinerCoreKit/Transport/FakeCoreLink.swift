@@ -85,6 +85,8 @@ public final class FakeCoreLink: CoreLink {
     /// False holds back the per-layer notifications after a cursor move, as the
     /// firmware's flush limiter does for up to half a second.
     public var republishesCursorLayer = true
+    /// Reads of these properties fail with the given error.
+    public var readErrors: [PropertyID: CoreLinkError] = [:]
     /// Writes to these properties fail with the given error.
     public var writeErrors: [PropertyID: CoreLinkError] = [:]
     /// When true, `read` responses queue up until `deliverPendingReads()`,
@@ -273,6 +275,10 @@ public final class FakeCoreLink: CoreLink {
 
     public func read(_ id: PropertyID) {
         readRequests.append(id)
+        if let error = readErrors[id] {
+            emit.yield(.readFailed(id, error))
+            return
+        }
         let raw = exposed.contains(id) ? value(of: id) : nil
         if deferReads {
             deferredReads.append((id, raw))

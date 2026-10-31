@@ -27,7 +27,7 @@ struct PlayView: View {
     /// Older firmware, or a summary that can't be read. Stays put while reconnecting.
     private var showsSingleLayer: Bool {
         let state = session.state
-        if state.layerSummaryError != nil { return true }
+        if state.layerSummaryError != nil || state.layerSummaryReadFailed { return true }
         guard state.raw[CoreProps.layers.id] == nil else { return false }
         return session.connection == .connected ? !state.isAvailable(CoreProps.layers) : !state.raw.isEmpty
     }

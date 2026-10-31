@@ -18,6 +18,9 @@ public struct CoreState: Equatable, Sendable {
     /// `documentation` arrive, or while `layerSummaryError` says why it can't be read.
     public var layerSummary: LayerSummary?
     public var layerSummaryError: LayerSummaryError?
+    /// The last read of `layers` failed. Unlike a read still outstanding, nothing will
+    /// arrive until the next `layersRevision` change asks again.
+    public var layerSummaryReadFailed = false
     /// The last summary of the core's own preset. The mesh carousel takes turns, so this
     /// outlives a neighbor's turn; `ownLayers` checks that it is still current.
     public var ownLayerSummary: LayerSummary?
