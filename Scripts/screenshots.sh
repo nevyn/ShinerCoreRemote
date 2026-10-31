@@ -61,6 +61,7 @@ capture_sim() {
     -destination "id=$udid" -derivedDataPath "$DD" build >/dev/null
   xcrun simctl boot "$udid" 2>/dev/null || true
   xcrun simctl bootstatus "$udid" -b >/dev/null
+  xcrun simctl ui "$udid" appearance "${APPEARANCE:-dark}"  # the strip preview glows best in dark; APPEARANCE=light for the other set
   xcrun simctl install "$udid" "$DD/Build/Products/Debug-iphonesimulator/$SCHEME.app"
   # A believable status bar; the real one shows a dying battery and TestFlight.
   xcrun simctl status_bar "$udid" override \
