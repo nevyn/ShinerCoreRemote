@@ -73,9 +73,10 @@ struct AnimationSettingsView: View {
 }
 
 extension AnimationSettingsView {
-    /// Explains a dimmed color tile; nil when the animation reads both colors.
+    /// Explains a dimmed color tile; nil when the animation reads both colors or draws nothing.
     static func colorNote(animation: String, colors: Int) -> String? {
-        switch colors {
+        guard animation != RenderLibrary.nothing else { return nil }
+        return switch colors {
         case 0: "\(animation) makes its own colors."
         case 1: "\(animation) uses only the primary color."
         default: nil
@@ -112,7 +113,7 @@ struct LayerPreview: View {
 
     private var caption: String? {
         guard let animation = state[CoreProps.animation] else { return "" }
-        if animation == RenderLibrary.animationNames.first { return "Nothing plays on this layer" }
+        if animation == RenderLibrary.nothing { return "Nothing plays on this layer" }
         if RenderLibrary.animationDoc(named: animation) == nil { return "No preview for \(animation)" }
         return nil
     }

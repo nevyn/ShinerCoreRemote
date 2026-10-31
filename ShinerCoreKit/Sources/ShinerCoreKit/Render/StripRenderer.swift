@@ -8,6 +8,8 @@ public enum RenderLibrary {
     public static let animationNames: [String] = (0 ..< shiner_animation_count()).map {
         String(cString: shiner_animation_name($0))
     }
+    /// The animation that draws nothing: index 0, which the library skips.
+    public static var nothing: String { animationNames[0] }
     /// The library's blend mode names, in table order.
     public static let blendModeNames: [String] = (0 ..< shiner_blend_mode_count()).map {
         String(cString: shiner_blend_mode_name($0))
