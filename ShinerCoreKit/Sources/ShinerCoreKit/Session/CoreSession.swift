@@ -97,9 +97,12 @@ public final class CoreSession {
         state.raw[id] = raw
         switch id {
         case CoreProps.documentation.id:
-            state.documentation = DocumentationConverter.convert(raw)
-            if state.documentation == nil {
-                lastError = "Core sent unparseable documentation"
+            do {
+                state.documentation = try Documentation(json: raw)
+            } catch {
+                state.documentation = nil
+                let reason = (error as? DecodingError)?.summary ?? String(describing: error)
+                lastError = "Core sent unreadable documentation (\(reason)); menus may be incomplete."
             }
         case CoreProps.wiringDocs.id:
             do {

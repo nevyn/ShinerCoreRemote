@@ -33,6 +33,17 @@ struct SessionHarness {
 }
 
 @Suite @MainActor struct CoreSessionTests {
+    @Test func malformedDocumentationNamesTheFailingKey() async {
+        let fake = FakeCoreLink.demo()
+        fake.values[CoreProps.documentation.id] = #"{"animations":3}"#
+        let h = await SessionHarness(fake: fake)
+        await settle { h.session.lastError != nil }
+        #expect(h.session.state.documentation == nil)
+        let error = h.session.lastError ?? ""
+        #expect(error.contains("documentation") && error.contains("animations"), "\(error)")
+        await h.stop()
+    }
+
     @Test func connectPopulatesState() async {
         let h = await SessionHarness()
         #expect(h.session.connection == .connected)
