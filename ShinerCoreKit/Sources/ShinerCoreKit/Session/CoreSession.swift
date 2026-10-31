@@ -167,13 +167,16 @@ public final class CoreSession {
         case CoreProps.layers.id:
             state.layerSummaryReadFailed = false
             decodeLayers()
+        case CoreProps.layerOpacities.id:
+            // Mixed with the previous `layers`, a neighbor's opacities would land on the own summary
+            if outstandingReads[CoreProps.layers.id]?.isEmpty ?? true { decodeLayers() }
         case CoreProps.layersRevision.id:
             guard let revision = Int(raw) else {
                 lastError = "Core sent an unreadable layers revision: \"\(raw)\""
                 return
             }
             if let seen = layersRevision, seen != revision, state.available.contains(CoreProps.layers.id) {
-                issueRead(CoreProps.layers.id)
+                for id in CoreProps.summary where state.available.contains(id) { issueRead(id) }
             }
             layersRevision = revision
         default:
@@ -182,10 +185,14 @@ public final class CoreSession {
     }
 
     /// Needs `documentation`, which names the summary's animation and blend mode indices.
+    /// A core without `layerOpacities` predates opacity, so its layers composite fully.
     private func decodeLayers() {
         guard let raw = state.raw[CoreProps.layers.id], let documentation = state.documentation else { return }
         do {
-            let summary = try LayerSummary(wire: raw, documentation: documentation)
+            var summary = try LayerSummary(wire: raw, documentation: documentation)
+            if state.isAvailable(CoreProps.layerOpacities), let opacities = state.raw[CoreProps.layerOpacities.id] {
+                summary.apply(opacities: try LayerSummary.opacities(wire: opacities))
+            }
             state.layerSummary = summary
             state.layerSummaryError = nil
             if case .preset = summary.source { state.ownLayerSummary = summary }
@@ -362,7 +369,7 @@ public final class CoreSession {
     public func removeLayer(_ slot: Int) {
         selectLayer(slot)
         editOwnLayers { $0.layers.removeAll { $0.index == slot } }
-        write(CoreProps.animation, nothing, holds: [CoreProps.layers.id])
+        write(CoreProps.animation, nothing, holds: CoreProps.summary)
     }
 
     /// Moves layer `from` of the current preset to slot `to`, shifting the layers in
@@ -383,7 +390,7 @@ public final class CoreSession {
         if state[CoreProps.layer] == from { state.raw[CoreProps.layer.id] = String(to) }
         showCursorLayerFromSummary()
         queueLatest(CoreProps.layerMove.id, name: "layer order", raw: "\(from) \(to)",
-                    holds: [CoreProps.layers.id, CoreProps.layer.id] + CoreProps.perLayer,
+                    holds: CoreProps.summary + [CoreProps.layer.id] + CoreProps.perLayer,
                     then: { [weak self] in self?.refresh() })
     }
 
@@ -415,5 +422,6 @@ public final class CoreSession {
         state.raw[CoreProps.tau.id] = DoubleConverter.unconvert(look.tau)
         state.raw[CoreProps.phi.id] = DoubleConverter.unconvert(look.phi)
         state.raw[CoreProps.beatSync.id] = look.beatSynced ? "1" : "0"
+        state.raw[CoreProps.opacity.id] = DoubleConverter.unconvert(look.opacity)
     }
 }

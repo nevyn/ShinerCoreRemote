@@ -76,7 +76,8 @@ public extension CoreState {
     }
 
     private func withCursorLayer(_ summary: LayerSummary) -> [LayerSummary.Layer] {
-        guard let slot = self[CoreProps.layer], CoreProps.perLayer.allSatisfy({ raw[$0] != nil }),
+        // A per-layer property that this core lacks (opacity, on older firmware) never arrives.
+        guard let slot = self[CoreProps.layer], CoreProps.perLayer.allSatisfy({ raw[$0] != nil || !available.contains($0) }),
               let look = layerLook else { return summary.layers }
         var layers = summary.layers.filter { $0.index != slot }
         if look.animation != documentation?.animations.first {

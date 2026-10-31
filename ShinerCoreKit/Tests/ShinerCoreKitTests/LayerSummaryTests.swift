@@ -103,6 +103,31 @@ struct LayerSummaryTests {
         #expect(summary.moving(from: move.from, to: move.to).layers.reversed().map(\.look.animation) == rows)
     }
 
+    @Test func decodesTheOpacitiesContractExample() throws {
+        #expect(try LayerSummary.opacities(wire: "1 0.3 1 1 1 1 1 1 1 0") == [1, 0.3, 1, 1, 1, 1, 1, 1, 1, 0])
+    }
+
+    @Test(arguments: [
+        ("1 1 1 1 1 1 1 1 1", "layerOpacities must list 10 opacities, found 9"),
+        ("1 1 1 1 1 1 1 1 1 1 1", "layerOpacities must list 10 opacities, found 11"),
+        ("1 1  1 1 1 1 1 1 1", "layerOpacities slot 2 is not a number: \"\""),
+        ("1 1 1 half 1 1 1 1 1 1", "layerOpacities slot 3 is not a number: \"half\""),
+        ("1 1 1 1 nan 1 1 1 1 1", "layerOpacities slot 4 is not a number: \"nan\""),
+        ("1 1 1 1 1 1.5 1 1 1 1", "layerOpacities slot 5 must be 0-1, not 1.5"),
+        ("1 1 1 1 1 1 -0.1 1 1 1", "layerOpacities slot 6 must be 0-1, not -0.1"),
+    ])
+    func malformedOpacitiesNameTheProblem(wire: String, reason: String) {
+        #expect(throws: LayerSummaryError(line: 1, text: wire, reason: reason)) {
+            try LayerSummary.opacities(wire: wire)
+        }
+    }
+
+    @Test func opacitiesLandOnTheirSlots() throws {
+        var summary = stack([0, 3, 7])
+        summary.apply(opacities: [1, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+        #expect(summary.layers.map(\.look.opacity) == [1, 0.3, 0.7])
+    }
+
     @Test func wiringNoticeNamesControlsWhoseLayerChanged() throws {
         let docs = try WiringDocs(json: #"{"board":"atom-lite","pins":["G21","G25","G22","G19","G23","G33","G26","G32"],"frontButton":"G39","analog":["G33","G32"],"led":["G26","G32"],"claims":{},"targets":["tau"]}"#)
         let wiring = Wiring(["G23": .switch(.layerOn(1)), "G33": .knob(Knob(target: .tau, layer: 5, min: 0, max: 1)),

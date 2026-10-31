@@ -35,6 +35,9 @@ public enum CoreProps {
     public static let brightness = PropertyKey<IntConverter>("brightness", "2B01")
     public static let tau = PropertyKey<DoubleConverter>("tau", "d879c81a-09f0-4a24-a66c-cebf358bb97a")
     public static let phi = PropertyKey<DoubleConverter>("phi", "df6f0905-09bd-4bf6-b6f5-45b5a4d20d52")
+    /// How strongly the layer composites onto the layers below it, 0-1. The core rejects
+    /// a write outside that range.
+    public static let opacity = PropertyKey<DoubleConverter>("opacity", "721da9f2-34da-4da2-bb64-0de65be811db")
     public static let name = PropertyKey<StringConverter>("name", "7ad50f2a-01b5-4522-9792-d3fd4af5942f")
     public static let layer = PropertyKey<IntConverter>("layer", "0a7eadd8-e4b8-4384-8308-e67a32262cc4")
     public static let preset = PropertyKey<IntConverter>("preset", "8b989f5e-3d22-4377-80c9-c54eeb459518")
@@ -58,7 +61,10 @@ public enum CoreProps {
     public static let wiringDocs = PropertyKey<WiringDocsConverter>("wiringDocs", "682bf183-44f6-4dc9-9eb0-640c05ae45db")
     /// The layer summary: every layer that the strip plays (`LayerSummary`). Read-only.
     public static let layers = PropertyKey<StringConverter>("layers", "a988b500-1b73-48e7-b353-9612e873af48")
-    /// Changes whenever `layers` would read differently; notifies.
+    /// The opacity of every layer slot that `layers` describes, slot 0 first
+    /// (`LayerSummary.opacities(wire:)`). Read-only; absent on cores that predate opacity.
+    public static let layerOpacities = PropertyKey<StringConverter>("layerOpacities", "4f577ef4-d444-4b85-93a0-4b6a4d4c0e49")
+    /// Changes whenever `layers` or `layerOpacities` would read differently; notifies.
     public static let layersRevision = PropertyKey<IntConverter>("layersRevision", "9231bed4-aec8-4fa0-88be-3242e937fc0a")
     /// Write-only: `FROM TO` moves a layer of the current preset (`CoreSession.moveLayer`).
     public static let layerMove = PropertyKey<StringConverter>("layerMove", "df64df61-5728-4e42-809f-bb7735fb30a0")
@@ -66,8 +72,12 @@ public enum CoreProps {
     /// The settings of the layer that the `layer` cursor points at, in the preset that the
     /// `preset` cursor points at. Moving either cursor republishes all of them.
     public static let perLayer: [PropertyID] = [
-        animation.id, blendMode.id, color.id, color2.id, speed.id, tau.id, phi.id, beatSync.id,
+        animation.id, blendMode.id, color.id, color2.id, speed.id, tau.id, phi.id, beatSync.id, opacity.id,
     ]
+
+    /// What the strip plays now, read together whenever `layersRevision` changes. Opacities
+    /// come first, so that decoding `layers` finds them current.
+    public static let summary: [PropertyID] = [layerOpacities.id, layers.id]
 
     /// Properties that the firmware doesn't let anyone read.
     public static let writeOnly: Set<PropertyID> = [layerMove.id]

@@ -44,8 +44,8 @@ right link. `FakeCoreLink` is the same contract backed by a small model of the
 firmware — previews, tests, and the app's `-demo…` launch arguments (see AGENTS.md)
 run the full stack against it. It keeps five presets of ten layers behind the `preset`
 and `layer` cursors and serves the per-layer properties (`CoreProps.perLayer`) of the
-layer under them; moving a cursor republishes them as notifications. `layers` and
-`layersRevision` derive from the model, `layerMove` moves layers per the contract,
+layer under them; moving a cursor republishes them as notifications. `layers`,
+`layerOpacities` and `layersRevision` derive from the model, `layerMove` moves layers per the contract,
 `gates` and `neighborLayers` stand in for switches and the mesh carousel, and a write
 yields once before acking, as a round trip would. Assigning `values` routes into the
 model, so tests and previews still set a property by id. The model has no DEBUG-only
@@ -146,7 +146,7 @@ grows; see the firmware's docs/rendering.md.
   speed change alters the pace instead of jumping; a stack plays in seconds. Under
   Reduce Motion the preview holds a still frame a third of the way into the cycle.
 * The composite (`StripRenderer.render(_:seconds:pixelCount:brightness:)`) blends
-  every layer with its blend mode, hides a layer whose gate is closed, then scales by
+  every layer with its blend mode at its opacity, hides a layer whose gate is closed, then scales by
   `CoreState.stripBrightness` (0 while the lights are off). Play passes that through
   a 1/2.2 power: LEDs look brighter than their duty cycle and screens are
   gamma-encoded, so a linear scale would show a 20 % strip as nearly black.
@@ -168,6 +168,12 @@ docs/ble-comms.md, "The layer summary".
   the mesh carousel plays one (`M`). The carousel takes turns every few beats, so
   `ownLayerSummary` keeps the last own summary: the stack lists the core's own layers
   throughout, the hero shows what plays, and Play says "Playing a neighbor's preset".
+* Opacity has its own property, `layerOpacities`: ten numbers, one per slot, because
+  shipped apps reject a `layers` line with an eleventh field. The session reads it
+  with `layers`, first, and applies each slot's opacity to that layer. A value that
+  fails to decode fails the summary like a bad `layers` line. A core without
+  `layerOpacities` predates opacity, so every layer composites fully. The layer
+  editor's Blend section edits the cursor layer's `opacity`, on the base layer too.
 * `CoreState.stack` overlays the cursor's layer from the per-layer properties, which
   follow an edit at once, while the summary waits for the next revision.
 * `selectLayer` shows the summary's values for the new layer until the core answers,

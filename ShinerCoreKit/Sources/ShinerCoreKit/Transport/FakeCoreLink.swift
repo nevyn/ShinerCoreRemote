@@ -3,9 +3,9 @@ import Foundation
 /// A `CoreLink` backed by a small model of the firmware, for previews, tests and demo
 /// mode: connects instantly and acks writes. Like the firmware, it keeps five presets of
 /// ten layers and serves the per-layer properties of the layer under the `layer` and
-/// `preset` cursors; moving a cursor republishes them. `layers` and `layersRevision`
-/// derive from the model, `layerMove` moves layers per the contract, and a `wiring`
-/// write bumps the pinStatus revision and notifies it.
+/// `preset` cursors; moving a cursor republishes them. `layers`, `layerOpacities` and
+/// `layersRevision` derive from the model, `layerMove` moves layers per the contract, and
+/// a `wiring` write bumps the pinStatus revision and notifies it.
 @MainActor
 public final class FakeCoreLink: CoreLink {
     public let events: AsyncStream<CoreLinkEvent>
@@ -14,8 +14,10 @@ public final class FakeCoreLink: CoreLink {
     /// The fake device's readable properties as the firmware would answer reads now.
     /// Assigning routes each value into the model: per-layer properties land in the
     /// layer under the cursors, and the cursors move. Removing a key hides that property,
-    /// as on older firmware. `layers` and `layersRevision` always derive from the model;
-    /// assigning either exposes the layer summary, removing one hides it.
+    /// as on older firmware. `layers`, `layerOpacities` and `layersRevision` always derive
+    /// from the model; assigning `layers` or `layersRevision` exposes the layer summary,
+    /// removing one hides it. Removing `layerOpacities` alone poses as firmware that
+    /// predates opacity.
     public var values: [PropertyID: String] {
         get {
             Dictionary(uniqueKeysWithValues: exposed.compactMap { id in value(of: id).map { (id, $0) } })
@@ -59,14 +61,14 @@ public final class FakeCoreLink: CoreLink {
     public var neighborLayers: [[PropertyID: String]]? {
         didSet { publishLayers(notify: true) }
     }
-    /// False poses as firmware that predates the layer summary.
+    /// False poses as firmware that predates the layer summary; true also exposes `layerOpacities`.
     public var exposesLayerSummary: Bool {
         get { exposed.contains(CoreProps.layers.id) }
         set {
             if newValue {
-                exposed.formUnion(Self.summaryProps)
+                exposed.formUnion(Self.summaryProps + [CoreProps.layerOpacities.id])
             } else {
-                exposed.subtract(Self.summaryProps)
+                exposed.subtract(Self.summaryProps + [CoreProps.layerOpacities.id])
             }
         }
     }
@@ -101,6 +103,7 @@ public final class FakeCoreLink: CoreLink {
     private var exposed: Set<PropertyID> = []
     private var layersRevision = 0
     private var publishedLayers = ""
+    private var publishedOpacities = ""
     private var pendingConnect = false
     private var deferredReads: [(id: PropertyID, raw: String?)] = []
 
@@ -111,18 +114,19 @@ public final class FakeCoreLink: CoreLink {
         CoreProps.animation.id: "Nothing", CoreProps.blendMode.id: "Add",
         CoreProps.color.id: "255 255 255", CoreProps.color2.id: "0 0 0",
         CoreProps.speed.id: "1.000", CoreProps.tau.id: "1.000", CoreProps.phi.id: "1.000",
-        CoreProps.beatSync.id: "0",
+        CoreProps.beatSync.id: "0", CoreProps.opacity.id: "1.000",
     ]
 
     /// A layer's per-layer properties in the firmware's wire formats.
     public static func layer(_ animation: String, blend: String = "Add", color: String, color2: String = "0 0 0",
-                             speed: Double, tau: Double = 1, phi: Double = 1, beatSync: Bool = false) -> [PropertyID: String] {
+                             speed: Double, tau: Double = 1, phi: Double = 1, beatSync: Bool = false,
+                             opacity: Double = 1) -> [PropertyID: String] {
         func fixed(_ value: Double) -> String { String(format: "%.3f", value) }
         return [
             CoreProps.animation.id: animation, CoreProps.blendMode.id: blend,
             CoreProps.color.id: color, CoreProps.color2.id: color2,
             CoreProps.speed.id: fixed(speed), CoreProps.tau.id: fixed(tau), CoreProps.phi.id: fixed(phi),
-            CoreProps.beatSync.id: beatSync ? "1" : "0",
+            CoreProps.beatSync.id: beatSync ? "1" : "0", CoreProps.opacity.id: fixed(opacity),
         ]
     }
 
@@ -184,7 +188,7 @@ public final class FakeCoreLink: CoreLink {
         switch id {
         case CoreProps.layerMove.id:
             move(raw)
-        case CoreProps.layers.id, CoreProps.layersRevision.id:
+        case CoreProps.layers.id, CoreProps.layersRevision.id, CoreProps.layerOpacities.id:
             break  // read-only
         case CoreProps.wiring.id:
             if !rejectWiringWrites { table[id] = raw }
@@ -233,6 +237,7 @@ public final class FakeCoreLink: CoreLink {
         case CoreProps.preset.id: String(presetCursor)
         case CoreProps.layer.id: String(layerCursor)
         case CoreProps.layers.id: publishedLayers
+        case CoreProps.layerOpacities.id: publishedOpacities
         case CoreProps.layersRevision.id: String(layersRevision)
         case CoreProps.layerMove.id: nil
         case _ where CoreProps.perLayer.contains(id): presets[presetCursor][layerCursor][id]
@@ -240,11 +245,11 @@ public final class FakeCoreLink: CoreLink {
         }
     }
 
-    /// Bumps the revision whenever `layers` would read differently, like the firmware.
+    /// Bumps the revision whenever `layers` or `layerOpacities` would read differently, like the firmware.
     private func publishLayers(notify: Bool) {
-        let wire = layersWire
-        guard wire != publishedLayers else { return }
-        publishedLayers = wire
+        let (wire, opacities) = (layersWire, opacitiesWire)
+        guard wire != publishedLayers || opacities != publishedOpacities else { return }
+        (publishedLayers, publishedOpacities) = (wire, opacities)
         layersRevision = (layersRevision + 1) % 65536
         if notify, exposesLayerSummary {
             emit.yield(.valueChanged(CoreProps.layersRevision.id, String(layersRevision)))
@@ -260,17 +265,28 @@ public final class FakeCoreLink: CoreLink {
             guard let animation = layer[CoreProps.animation.id].flatMap(docs.animations.firstIndex(of:)), animation != 0,
                   let blend = layer[CoreProps.blendMode.id].flatMap(docs.blendModes.firstIndex(of:)) else { return nil }
             func hex(_ id: PropertyID) -> String { layer[id].flatMap(PixelColor.init(wire:))?.hex ?? "000000" }
-            func compact(_ id: PropertyID) -> String {
-                var s = String(format: "%.3f", Double(layer[id] ?? "") ?? 0)
-                while s.hasSuffix("0") { s.removeLast() }
-                if s.hasSuffix(".") { s.removeLast() }
-                return s == "-0" ? "0" : s
-            }
+            func compact(_ id: PropertyID) -> String { Self.compact(layer[id], default: 0) }
             return [String(slot), String(animation), String(blend), hex(CoreProps.color.id), hex(CoreProps.color2.id),
                     compact(CoreProps.speed.id), compact(CoreProps.tau.id), compact(CoreProps.phi.id),
                     layer[CoreProps.beatSync.id] == "1" ? "1" : "0", gates[slot] ? "1" : "0"].joined(separator: " ")
         }
         return ([header] + lines).joined(separator: "\n")
+    }
+
+    /// The `layerOpacities` value: every slot of what `layers` describes, empty ones too.
+    private var opacitiesWire: String {
+        let layers = neighborLayers ?? presets[presetCursor]
+        return (0 ..< CoreProps.layerCount).map { slot in
+            Self.compact(layers.indices.contains(slot) ? layers[slot][CoreProps.opacity.id] : nil, default: 1)
+        }.joined(separator: " ")
+    }
+
+    /// The summary's float format: at most three decimals, trailing zeros and point dropped.
+    nonisolated private static func compact(_ raw: String?, default fallback: Double) -> String {
+        var s = String(format: "%.3f", raw.flatMap(Double.init) ?? fallback)
+        while s.hasSuffix("0") { s.removeLast() }
+        if s.hasSuffix(".") { s.removeLast() }
+        return s == "-0" ? "0" : s
     }
 
     public func read(_ id: PropertyID) {

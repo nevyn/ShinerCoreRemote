@@ -43,8 +43,9 @@ import Foundation
         let revision = first.state.raw[CoreProps.layersRevision.id]
         first.set(CoreProps.brightness, to: 20)
         first.removeLayer(2)
-        // Brightness is flushed ahead of the layer edit, so a new revision means both landed.
-        await settle { first.state.raw[CoreProps.layersRevision.id] != revision }
+        // Brightness is flushed ahead of the layer edit, so a new revision means both landed;
+        // the summary arrives with the reread that the revision triggers.
+        await settle { first.state.raw[CoreProps.layersRevision.id] != revision && first.state.layerSummary?.layers.count == 2 }
         #expect(first.state.raw[CoreProps.layersRevision.id] != revision)
         #expect(first.state.layerSummary?.layers.count == 2)
         firstRunner.cancel()

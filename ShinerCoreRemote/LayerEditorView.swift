@@ -79,11 +79,11 @@ struct LayerEditorView: View {
                     }
                 }
 
-                // The base layer blends onto black, where every mode but a few looks like Add;
-                // it still shows when another mode has been moved to the bottom.
-                if !isBase || (state[CoreProps.blendMode].map { $0 != "Add" } ?? false) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        SectionTitle("Blend")
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionTitle("Blend")
+                    // The base layer blends onto black, where every mode but a few looks like Add;
+                    // it still shows when another mode has been moved to the bottom.
+                    if !isBase || (state[CoreProps.blendMode].map { $0 != "Add" } ?? false) {
                         SettingTile("Mix with the layers below", symbol: "square.stack.3d.down.right") {
                             VocabularyPicker("Blend mode", session: session, key: CoreProps.blendMode,
                                              options: state.documentation?.blendModes ?? [])
@@ -91,6 +91,7 @@ struct LayerEditorView: View {
                         }
                         .availability(of: CoreProps.blendMode, in: session)
                     }
+                    OpacityTile(session: session)
                 }
 
                 Button(role: .destructive) {
@@ -221,6 +222,27 @@ struct Swatch: View {
     }
 }
 
+/// How strongly the layer composites onto the layers below it, as a percentage.
+struct OpacityTile: View {
+    let session: CoreSession
+    private let key = CoreProps.opacity
+
+    var body: some View {
+        let value = session.state[key]
+        let percent = value?.formatted(.percent.precision(.fractionLength(0)))
+        SettingTile("Opacity", symbol: "circle.lefthalf.filled", value: percent) {
+            // Whole percents, so that a drag sends only the steps a person can see.
+            Slider(value: Binding(
+                get: { value ?? 1 },
+                set: { session.set(key, to: ($0 * 100).rounded() / 100) }
+            ), in: 0 ... 1)
+            .accessibilityLabel("Opacity")
+            .accessibilityValue(percent ?? "")
+        }
+        .availability(of: key, in: session)
+    }
+}
+
 #Preview("Layer editor") {
     let link = FakeCoreLink.demo()
     link.values[CoreProps.layer.id] = "1"
@@ -228,6 +250,18 @@ struct Swatch: View {
     return NavigationStack {
         LayerEditorView(session: session, slot: 1, isBase: false)
     }
+    .task { await session.run() }
+}
+
+#Preview("Blend") {
+    let link = FakeCoreLink.demo()
+    link.values[CoreProps.layer.id] = "1"
+    link.values[CoreProps.opacity.id] = "0.700"
+    let session = CoreSession(link: link)
+    return NavigationStack {
+        LayerEditorView(session: session, slot: 1, isBase: false)
+    }
+    .defaultScrollAnchor(.bottom)  // the Blend section is below the fold
     .task { await session.run() }
 }
 
