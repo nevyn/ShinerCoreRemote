@@ -3,7 +3,7 @@ import Foundation
 /// The `wiringDocs` property: the board's pins and what each can do. Static
 /// per firmware build, read once per connection.
 public struct WiringDocs: Equatable, Sendable {
-    /// `atom-lite`, `atom-echo` or `atoms3-lite`; the app keys board drawings on it.
+    /// `atom-lite`, `atom-echo`, `atoms3-lite` or `stickc-plus`; the app keys board drawings on it.
     public let board: String
     /// Every wiring pin, in status bit order.
     public let pins: [String]

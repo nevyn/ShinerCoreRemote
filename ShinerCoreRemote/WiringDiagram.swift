@@ -4,36 +4,49 @@ import SwiftUI
 /// labels as printed on the case. App-owned and keyed by the firmware's board
 /// id; checked against the real hardware.
 struct BoardLayout {
+    /// The case's shape and the headers on its back.
+    enum Form {
+        /// Square, with a header down each side, top to bottom.
+        case atom(left: [String], right: [String])
+        /// Tall, with one header across the top end, left to right. The case prints its
+        /// labels reading bottom to top, and so does the drawing.
+        case stick(top: [String])
+    }
+
     /// The firmware's board id ("atom-lite").
     let id: String
     let name: String
-    let leftHeader: [String]   // top to bottom
-    let rightHeader: [String]
+    let form: Form
     let grove: [String]        // black, red, yellow, white
+    /// False when the firmware gives the board no wiring pins: both Grove signals drive LEDs.
+    let hasWiring: Bool
     static let groveColors: [Color] = [.black, .red, .yellow, .white]
     static let groveColorNames = ["black", "red", "yellow", "white"]
 
     static let atomLite = BoardLayout(
         id: "atom-lite",
         name: "Atom Lite",
-        leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
-        rightHeader: ["G21", "G25", "5V", "G"],
+        form: .atom(left: ["3V3", "G22", "G19", "G23", "G33"], right: ["G21", "G25", "5V", "G"]),
         grove: ["G", "5V", "G26", "G32"])
     static let atomEcho = BoardLayout(
         id: "atom-echo",
         name: "Atom Echo",
-        leftHeader: ["3V3", "G22", "G19", "G23", "G33"],
-        rightHeader: ["G21", "G25", "5V", "G"],
+        form: .atom(left: ["3V3", "G22", "G19", "G23", "G33"], right: ["G21", "G25", "5V", "G"]),
         grove: ["G", "5V", "G26", "G32"])
     static let atomS3Lite = BoardLayout(
         id: "atoms3-lite",
         name: "AtomS3 Lite",
-        leftHeader: ["3V3", "G5", "G6", "G7", "G8"],
-        rightHeader: ["G39", "G38", "5V", "G"],
+        form: .atom(left: ["3V3", "G5", "G6", "G7", "G8"], right: ["G39", "G38", "5V", "G"]),
         grove: ["G", "5V", "G2", "G1"])
+    static let stickCPlus = BoardLayout(
+        id: "stickc-plus",
+        name: "M5StickC Plus",
+        form: .stick(top: ["GND", "5V→", "G26", "G36/G25", "G0", "BAT", "3V3", "5V←"]),  // arrows as printed, in reading direction
+        grove: ["G", "5V", "G32", "G33"],
+        hasWiring: false)
 
     /// Every board this app has a drawing of, in the order the build guide lists them.
-    static let all = [atomLite, atomEcho, atomS3Lite]
+    static let all = [atomLite, atomEcho, atomS3Lite, stickCPlus]
 
     /// Nil for a board this app has no drawing of.
     init?(board id: String) {
@@ -41,12 +54,12 @@ struct BoardLayout {
         self = layout
     }
 
-    private init(id: String, name: String, leftHeader: [String], rightHeader: [String], grove: [String]) {
+    private init(id: String, name: String, form: Form, grove: [String], hasWiring: Bool = true) {
         self.id = id
         self.name = name
-        self.leftHeader = leftHeader
-        self.rightHeader = rightHeader
+        self.form = form
         self.grove = grove
+        self.hasWiring = hasWiring
     }
 
     func isGroveSignal(_ label: String) -> Bool { grove.dropFirst(2).contains(label) }
@@ -66,22 +79,34 @@ struct BoardLayout {
 
 struct BoardGeometry {
     let board: BoardLayout
-    let origin: CGPoint
-    let size: CGFloat = 140
-    var rect: CGRect { CGRect(origin: origin, size: CGSize(width: size, height: size)) }
+    let rect: CGRect
+    static let stickPitch: CGFloat = 10
 
-    func hole(_ label: String) -> (point: CGPoint, outward: CGFloat)? {
-        if let i = board.leftHeader.firstIndex(of: label) {
-            return (CGPoint(x: origin.x + 12, y: origin.y + 30 + CGFloat(i) * 20), -1)
-        }
-        if let i = board.rightHeader.firstIndex(of: label) {
-            return (CGPoint(x: origin.x + size - 12, y: origin.y + 30 + CGFloat(i) * 20), 1)
-        }
-        return nil
+    init(board: BoardLayout, centerX: CGFloat, top: CGFloat) {
+        self.board = board
+        let width: CGFloat = if case .stick = board.form { 90 } else { 140 }
+        rect = CGRect(x: centerX - width / 2, y: top, width: width, height: 140)
     }
 
-    func groveX(_ i: Int) -> CGFloat { origin.x + 40 + CGFloat(i) * 20 }
-    var groveY: CGFloat { origin.y + size + 4 }
+    /// Every header pin, with its hole and the side that its wire leaves the board on.
+    var holes: [(label: String, point: CGPoint, outward: CGFloat)] {
+        switch board.form {
+        case .atom(let left, let right):
+            left.enumerated().map { i, l in (l, CGPoint(x: rect.minX + 12, y: rect.minY + 30 + CGFloat(i) * 20), -1) }
+                + right.enumerated().map { i, l in (l, CGPoint(x: rect.maxX - 12, y: rect.minY + 30 + CGFloat(i) * 20), 1) }
+        case .stick(let top):
+            top.enumerated().map { i, l in
+                (l, CGPoint(x: rect.minX + 10 + CGFloat(i) * Self.stickPitch, y: rect.minY + 12), i < top.count / 2 ? -1 : 1)
+            }
+        }
+    }
+
+    func hole(_ label: String) -> (point: CGPoint, outward: CGFloat)? {
+        holes.first { $0.label == label }.map { ($0.point, $0.outward) }
+    }
+
+    func groveX(_ i: Int) -> CGFloat { rect.midX - 30 + CGFloat(i) * 20 }
+    var groveY: CGFloat { rect.maxY + 4 }
 }
 
 private func roundedPolyline(_ pts: [CGPoint], radius: CGFloat = 8) -> Path {
@@ -114,26 +139,38 @@ private let boardInk = Color(white: 0.4)
 
 /// Draws the board seen from the back: headers left and right, the Grove socket at the bottom.
 private func drawBoard(_ ctx: GraphicsContext, _ g: BoardGeometry, emphasis: [String: Color], groveTint: Color? = nil) {
-    let body = Path(roundedRect: g.rect, cornerRadius: 18)
+    let stick = if case .stick = g.board.form { true } else { false }
+    let body = Path(roundedRect: g.rect, cornerRadius: stick ? 14 : 18)
     ctx.fill(body, with: .color(Color(white: 0.92)))
     ctx.stroke(body, with: .color(Color(white: 0.6)), lineWidth: 1)
-    let center = CGPoint(x: g.rect.midX, y: g.rect.midY - 6)
-    ctx.draw(label("ATOM", bold: true, color: .gray, size: 13), at: center)
+    let center = CGPoint(x: g.rect.midX, y: g.rect.midY + (stick ? 14 : -6))
+    ctx.draw(label(stick ? "M5STICK" : "ATOM", bold: true, color: .gray, size: stick ? 12 : 13), at: center)
     ctx.draw(label(g.board.name, color: .gray, size: 8), at: CGPoint(x: center.x, y: center.y + 14))
 
-    for (header, x) in [(g.board.leftHeader, g.origin.x + 12), (g.board.rightHeader, g.origin.x + g.size - 12)] {
-        let strip = CGRect(x: x - 7, y: g.origin.y + 20, width: 14, height: CGFloat(header.count) * 20)
-        ctx.fill(Path(roundedRect: strip, cornerRadius: 3), with: .color(.black))
-        for name in header {
-            guard let (p, out) = g.hole(name) else { continue }
-            let hole = CGRect(x: p.x - 3, y: p.y - 3, width: 6, height: 6)
-            ctx.fill(Path(hole), with: .color(Color(white: 0.35)))
-            let tint = emphasis[name]
-            if let tint {
-                ctx.stroke(Path(ellipseIn: hole.insetBy(dx: -3, dy: -3)), with: .color(tint), lineWidth: 2)
-            }
-            ctx.draw(label(name, bold: tint != nil, color: tint ?? boardInk),
-                     at: CGPoint(x: p.x - out * 12, y: p.y), anchor: out < 0 ? .leading : .trailing)
+    let strips = switch g.board.form {
+    case .atom(let left, let right):
+        [CGRect(x: g.rect.minX + 5, y: g.rect.minY + 20, width: 14, height: CGFloat(left.count) * 20),
+         CGRect(x: g.rect.maxX - 19, y: g.rect.minY + 20, width: 14, height: CGFloat(right.count) * 20)]
+    case .stick(let top):
+        [CGRect(x: g.rect.minX + 3, y: g.rect.minY + 6, width: CGFloat(top.count - 1) * BoardGeometry.stickPitch + 14, height: 12)]
+    }
+    for strip in strips { ctx.fill(Path(roundedRect: strip, cornerRadius: 3), with: .color(.black)) }
+    for (name, p, out) in g.holes {
+        let size: CGFloat = stick ? 5 : 6
+        let hole = CGRect(x: p.x - size / 2, y: p.y - size / 2, width: size, height: size)
+        ctx.fill(Path(hole), with: .color(Color(white: 0.35)))
+        let tint = emphasis[name]
+        if let tint {
+            ctx.stroke(Path(ellipseIn: hole.insetBy(dx: -3, dy: -3)), with: .color(tint), lineWidth: 2)
+        }
+        let text = label(name, bold: tint != nil, color: tint ?? boardInk, size: stick ? 7 : 9)
+        if stick {
+            var c = ctx
+            c.translateBy(x: p.x, y: p.y + 9)
+            c.rotate(by: .degrees(-90))
+            c.draw(text, at: .zero, anchor: .trailing)
+        } else {
+            ctx.draw(text, at: CGPoint(x: p.x - out * 12, y: p.y), anchor: out < 0 ? .leading : .trailing)
         }
     }
 
@@ -156,7 +193,7 @@ struct BoardFaceView: View {
 
     var body: some View {
         Canvas { ctx, size in
-            let g = BoardGeometry(board: board, origin: CGPoint(x: (size.width - 140) / 2, y: 8))
+            let g = BoardGeometry(board: board, centerX: size.width / 2, top: 8)
             for (i, name) in board.grove.enumerated() {
                 let x = g.groveX(i)
                 let path = roundedPolyline([CGPoint(x: x, y: g.groveY - 4), CGPoint(x: x, y: g.groveY + 30)])
@@ -206,7 +243,7 @@ struct WiringDiagramView: View {
 
     var body: some View {
         Canvas { ctx, size in
-            let g = BoardGeometry(board: board, origin: CGPoint(x: (size.width - 140) / 2 - 20, y: 14))
+            let g = BoardGeometry(board: board, centerX: size.width / 2 - 20, top: 14)
             let ws = wires(for: kind, pin: pin, on: board)
             let legTipY: CGFloat = 268
             let cx = size.width - 80
@@ -445,6 +482,7 @@ struct WiringSteps: View {
             WiringDiagramView(board: .atomS3Lite, pin: "G38", kind: .switch, contextLED: "G2").frame(height: 340)
             WiringSteps(layout: nil, boardName: "atoms3-lite", pin: "G38", kind: .switch)
             BoardFaceView(board: .atomS3Lite, emphasis: ["G2": RoleKind.leds.tint], groveTint: RoleKind.leds.tint).frame(height: 200)
+            BoardFaceView(board: .stickCPlus, emphasis: ["G32": RoleKind.leds.tint], groveTint: RoleKind.leds.tint).frame(height: 200)
             GroveCableCutView().frame(height: 110)
             StripSolderView().frame(height: 150)
         }

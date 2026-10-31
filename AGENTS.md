@@ -94,7 +94,8 @@ hand-edit the pbxproj to add files.
   no values read yet; combines with `-demo-tab`), `-demo-onboarding 1|2|3` (an onboarding
   page), or `-demo-build-guide <1-5> [board id]` (a build guide step; the board defaults
   to `atom-lite` after step 1), then
-  `xcrun simctl io booted screenshot`. `-demo-animation <name>` gives the demo layer another
+  `xcrun simctl io booted screenshot`. `-demo-board <id>` makes the fake core another board
+  (`atom-echo` by default). `-demo-animation <name>` gives the demo layer another
   animation; a name the render library doesn't know shows the no-preview state. Every
   screen is reachable by argument alone — keep it that way when adding screens, it's what
   makes captures tap-free. A new tab
