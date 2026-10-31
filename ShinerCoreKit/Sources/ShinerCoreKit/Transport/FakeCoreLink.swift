@@ -82,6 +82,8 @@ public final class FakeCoreLink: CoreLink {
     public private(set) var reachable = true
     /// When set, writes fail with this error.
     public var writeError: CoreLinkError?
+    /// Writes to these properties fail with the given error.
+    public var writeErrors: [PropertyID: CoreLinkError] = [:]
     /// When true, `read` responses queue up until `deliverPendingReads()`,
     /// capturing the value at request time — models the device answering
     /// serially, so a response can be stale by the time it arrives.
@@ -170,7 +172,7 @@ public final class FakeCoreLink: CoreLink {
     }
 
     public func write(_ raw: String, to id: PropertyID) async throws {
-        if let writeError { throw writeError }
+        if let error = writeError ?? writeErrors[id] { throw error }
         guard reachable else { throw CoreLinkError("Disconnected") }
         written.append((id, raw))
         switch id {

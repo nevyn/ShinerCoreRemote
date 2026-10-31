@@ -41,6 +41,19 @@ import Foundation
         await h.stop()
     }
 
+    @Test func editAfterAFailedCursorMoveNeverReachesTheCore() async throws {
+        let h = await SessionHarness()
+        h.fake.writeErrors[CoreProps.layer.id] = CoreLinkError("device said no")
+        h.session.selectLayer(2)
+        h.session.set(CoreProps.speed, to: 9)  // throttled, meant for layer 2
+        await settle { h.session.lastError != nil }
+        try await Task.sleep(for: .milliseconds(100))  // ten throttle intervals
+        #expect(!h.fake.written.contains { $0.id == CoreProps.speed.id }, "\(written(h.fake))")
+        #expect(h.fake.presets[1][0][CoreProps.speed.id] == "2.500", "the previous layer is untouched")
+        #expect(h.session.lastError == "Couldn't set layer: device said no. The change after it wasn't sent.")
+        await h.stop()
+    }
+
     @Test func selectingShowsTheLayerAtOnceAndKeepsItOnceRead() async {
         let h = await SessionHarness()
         h.session.selectLayer(1)

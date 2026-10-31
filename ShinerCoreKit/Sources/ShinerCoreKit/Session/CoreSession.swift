@@ -303,9 +303,12 @@ public final class CoreSession {
                 try await link.write(write.raw, to: write.id)
             } catch {
                 inFlight = nil
-                // Later writes may depend on this one (a cursor move), so they don't go either.
-                let dropped = queue.count
+                // Later writes may depend on this one (a cursor move), so they don't go either,
+                // and neither do throttled edits, which would land on the old cursor.
+                for (_, timer) in throttled.values { timer.cancel() }
+                let dropped = queue.count + throttled.count
                 queue = []
+                throttled = [:]
                 let unsent = switch dropped {
                 case 0: ""
                 case 1: " The change after it wasn't sent."
