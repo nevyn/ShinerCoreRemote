@@ -89,6 +89,12 @@ struct StripRendererTests {
         #expect(pixels == Array(repeating: red, count: 12))
     }
 
+    @Test func oversizedPixelCountIsClamped() throws {
+        let look = LayerLook(animation: "Static", color1: red, color2: blue, speed: 2, tau: 1, phi: 1)
+        let pixels = try #require(StripRenderer.render([look], seconds: 0, pixelCount: Int.max))
+        #expect(pixels.count == CoreProps.maxLEDCount)
+    }
+
     @Test func unknownAnimationRendersNothing() {
         let look = LayerLook(animation: "Lava Lamp", color1: red, color2: blue, speed: 2, tau: 1, phi: 1)
         #expect(StripRenderer.render([look], seconds: 0, pixelCount: 12) == nil)

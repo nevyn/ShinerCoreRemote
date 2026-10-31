@@ -98,8 +98,8 @@ public enum StripRenderer {
     /// The firmware's BeatDetector envelope decay time.
     static let envelopeDecay = 0.15
 
-    /// Composites `looks` bottom-up onto black at `seconds` into `pixelCount` pixels.
-    /// Nil when the render library doesn't know an animation, because a wrong preview
+    /// Composites `looks` bottom-up onto black at `seconds` into `pixelCount` pixels,
+    /// clamped to `CoreProps.maxLEDCount` because the count comes from the core. Nil when the render library doesn't know an animation, because a wrong preview
     /// is worse than none. An unknown blend mode blends as Add, as on the device.
     public static func render(_ looks: [LayerLook], seconds: Double, pixelCount: Int) -> [PixelColor]? {
         var layers: [ShinerLayer] = []
@@ -113,6 +113,7 @@ public enum StripRenderer {
                 time: seconds / look.secondsPerCycle, gain: 1))
         }
         guard pixelCount > 0 else { return [] }
+        let pixelCount = min(pixelCount, CoreProps.maxLEDCount)
         var pixels = [ShinerRGB](repeating: ShinerRGB(r: 0, g: 0, b: 0), count: pixelCount)
         shiner_render(layers, Int32(layers.count), beatEnvelope(at: seconds), &pixels, Int32(pixelCount))
         return pixels.map { PixelColor(r: $0.r, g: $0.g, b: $0.b) }
