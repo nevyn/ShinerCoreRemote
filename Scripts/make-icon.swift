@@ -18,7 +18,7 @@ func gray(_ c: RGB) -> RGB { let l = 0.3 * c.r + 0.59 * c.g + 0.11 * c.b; return
 
 let top: RGB = (0.82, 0.22, 0.92)    // the app's accent
 let bottom: RGB = (1, 0.27, 0.16)
-let ground: RGB = (0.05, 0.03, 0.07)
+let ground: RGB = (12.0 / 255, 7.0 / 255, 22.0 / 255)  // the nevyn.dev/shinercore hero's base
 
 enum Style { case standard, dark, tinted }
 enum Shape { case iosSquare, macTile }
@@ -46,8 +46,13 @@ func draw(_ ctx: CGContext, pixels: Int, style: Style, shape: Shape) {
     ctx.addPath(tilePath)
     ctx.clip()
     if style == .standard {
-        let glow = CGGradient(colorsSpace: nil, colors: [color((0.20, 0.07, 0.24)), color((0.04, 0.02, 0.06))] as CFArray, locations: [0, 1])!
-        ctx.drawRadialGradient(glow, startCenter: center, startRadius: 0, endCenter: center, endRadius: 640 * scale, options: [])
+        // The hero's glows, softer: magenta from the top right, violet from the bottom left.
+        for (hue, alpha, at, reach) in [((1.0, 0.18, 0.58), 0.30, CGPoint(x: 0.78, y: 0.70), 0.75),
+                                        ((0.49, 0.30, 1.0), 0.32, CGPoint(x: 0.10, y: 0.0), 0.85)] {
+            let spot = CGPoint(x: tile.minX + at.x * tile.width, y: tile.minY + at.y * tile.height)
+            let glow = CGGradient(colorsSpace: nil, colors: [color(hue, alpha), color(hue, 0)] as CFArray, locations: [0, 1])!
+            ctx.drawRadialGradient(glow, startCenter: spot, startRadius: 0, endCenter: spot, endRadius: reach * tile.width, options: [])
+        }
     }
 
     let rowCounts = rows(pixels: pixels)
