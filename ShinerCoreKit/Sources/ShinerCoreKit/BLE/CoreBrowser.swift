@@ -16,12 +16,18 @@ public struct DiscoveredCore: Identifiable, Hashable, Sendable {
 /// its `BLECoreLink`.
 @Observable @MainActor
 public final class CoreBrowser: NSObject {
+    /// The simulated core behind "Try the demo core": `makeSession(for:)` gives it a
+    /// session over a fresh `FakeCoreLink.demo()`, so every visit starts from the same
+    /// state and nothing persists. Never in `discovered`, never has signal bars.
+    public let demoCore = DiscoveredCore(id: UUID(uuidString: "D3E0C0DE-5817-4E2C-9A1B-000000000000")!, name: "Demo core")
+    /// Nearby cores in order of discovery.
     public private(set) var discovered: [DiscoveredCore] = []
     public private(set) var isBluetoothAvailable = false
     /// Signal bars (0-3, see `SignalMeter`) per discovered core, by id. Kept out of
     /// `DiscoveredCore` so that a changing RSSI doesn't change the list's identity.
     public private(set) var signalBars: [UUID: Int] = [:]
 
+    @ObservationIgnored private let usesBluetooth: Bool
     @ObservationIgnored private var central: CBCentralManager?
     @ObservationIgnored private var peripherals: [UUID: CBPeripheral] = [:]
     @ObservationIgnored private var links: [UUID: WeakLink] = [:]
@@ -32,13 +38,16 @@ public final class CoreBrowser: NSObject {
 
     private struct WeakLink { weak var link: BLECoreLink? }
 
+    /// Bluetooth starts on first use (`startScanning()` or a session for a nearby core),
+    /// so that a browser that only serves the demo core never touches it.
     public override init() {
+        usesBluetooth = true
         super.init()
-        central = CBCentralManager(delegate: self, queue: nil)
     }
 
-    /// Preview/demo-only: canned cores at fixed RSSIs (dBm) and no Bluetooth; sessions
-    /// come from `linkFactory` (typically `{ _ in FakeCoreLink.demo() }`).
+    /// For previews and the `-demo` launch arguments: canned cores at fixed RSSIs (dBm) and
+    /// no Bluetooth; their sessions come from `linkFactory` (typically
+    /// `{ _ in FakeCoreLink.demo() }`). `demoCore` still gets its own fresh demo.
     public init(previewCores: [(core: DiscoveredCore, rssi: Int)], linkFactory: ((DiscoveredCore) -> any CoreLink)? = nil) {
         discovered = previewCores.map(\.core)
         meters = Dictionary(uniqueKeysWithValues: previewCores.compactMap { core, rssi in
@@ -47,11 +56,14 @@ public final class CoreBrowser: NSObject {
         signalBars = meters.mapValues(\.bars)
         isBluetoothAvailable = true
         previewLinkFactory = linkFactory
+        usesBluetooth = false
         super.init()
     }
 
     public func startScanning() {
+        guard usesBluetooth else { return }
         wantsScan = true
+        _ = liveCentral  // scans once it reports poweredOn
         scanIfPossible()
     }
 
@@ -63,7 +75,7 @@ public final class CoreBrowser: NSObject {
     /// Forgets cores that aren't connected, then rescans; advertising cores
     /// reappear within a second or two, powered-off ones stay gone.
     public func refresh() {
-        guard central != nil else { return }  // preview cores can't rescan into existence
+        guard usesBluetooth else { return }  // preview cores can't rescan into existence
         let live = Set(links.compactMap { $0.value.link != nil ? $0.key : nil })
         discovered.removeAll { !live.contains($0.id) }
         peripherals = peripherals.filter { live.contains($0.key) }
@@ -72,13 +84,19 @@ public final class CoreBrowser: NSObject {
         scanIfPossible()
     }
 
+    /// A session for `core`, which is `demoCore` or one of `discovered`. Run it for as
+    /// long as the core is on screen.
     public func makeSession(for core: DiscoveredCore) -> CoreSession {
+        if core == demoCore {
+            return CoreSession(link: FakeCoreLink.demo())
+        }
         if let previewLinkFactory {
             return CoreSession(link: previewLinkFactory(core))
         }
-        guard let central else {
-            preconditionFailure("makeSession on a preview browser without a link factory")
+        guard usesBluetooth else {
+            preconditionFailure("makeSession(for: \(core.name)) on a preview browser without a link factory")
         }
+        let central = liveCentral
         links = links.filter { $0.value.link != nil }
         if peripherals[core.id] == nil {
             // Pruned or never seen this launch; the system usually still knows it.
@@ -93,6 +111,13 @@ public final class CoreBrowser: NSObject {
         let link = BLECoreLink(central: central, peripheral: peripheral)
         links[core.id] = WeakLink(link: link)
         return CoreSession(link: link)
+    }
+
+    private var liveCentral: CBCentralManager {
+        if let central { return central }
+        let created = CBCentralManager(delegate: self, queue: nil)
+        central = created
+        return created
     }
 
     private func scanIfPossible() {
