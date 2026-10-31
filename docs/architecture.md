@@ -36,10 +36,12 @@ instead of retrying forever.
 
 `BLECoreLink` implements it over a `CBPeripheral`. `CoreBrowser` owns the
 `CBCentralManager`: scanning (foreground only; `refresh()` prunes
-powered-off cores), discovery (`DiscoveredCore` values, not live objects),
+powered-off cores), discovery (`DiscoveredCore` values, not live objects;
+signal bars live beside them in `signalBars`, smoothed by `SignalMeter`, so a
+changing RSSI never changes list identity),
 vending sessions, and forwarding central-level delegate callbacks to the
 right link. `FakeCoreLink` is the same contract scripted — previews, tests,
-and the app's `-demo`/`-demo-offline`/`-demo-list` launch arguments (see
+and the app's `-demo`/`-demo-offline`/`-demo-list`/`-demo-list-empty` launch arguments (see
 AGENTS.md) run the full stack against it.
 
 ## Session — the controller (`Session/`)
