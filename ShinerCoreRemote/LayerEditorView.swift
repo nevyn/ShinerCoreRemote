@@ -15,8 +15,6 @@ struct LayerEditorView: View {
         let doc = animation.map(state.animationDoc(for:)) ?? .generic
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                LayerPreview(state: state)
-
                 VStack(alignment: .leading, spacing: 10) {
                     SectionTitle("Animation")
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], spacing: 8) {
@@ -107,6 +105,14 @@ struct LayerEditorView: View {
                 .foregroundStyle(.red)
             }
             .padding()
+        }
+        // Pinned, so the effect of a change shows while the controls below the fold are in reach.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            LayerPreview(state: state)
+                .frame(height: 84)  // the strip grows to fill whatever height it is offered
+                .padding([.horizontal, .top])
+                .padding(.bottom, 8)
+                .background(Color.groupedBackground)
         }
         .background(Color.groupedBackground)
         .navigationTitle(isBase ? "Base layer" : "Layer \(slot)")
