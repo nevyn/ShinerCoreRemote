@@ -63,6 +63,12 @@ public enum CoreProps {
     /// Write-only: `FROM TO` moves a layer of the current preset (`CoreSession.moveLayer`).
     public static let layerMove = PropertyKey<StringConverter>("layerMove", "df64df61-5728-4e42-809f-bb7735fb30a0")
 
+    /// The settings of the layer that the `layer` cursor points at, in the preset that the
+    /// `preset` cursor points at. Moving either cursor republishes all of them.
+    public static let perLayer: [PropertyID] = [
+        animation.id, blendMode.id, color.id, color2.id, speed.id, tau.id, phi.id, beatSync.id,
+    ]
+
     /// Properties that the firmware doesn't let anyone read.
     public static let writeOnly: Set<PropertyID> = [layerMove.id]
 }
