@@ -55,9 +55,11 @@ public struct LayerLook: Equatable, Sendable {
     public var beatSynced: Bool
     public var tau: Double
     public var phi: Double
+    /// How strongly the layer composites onto the layers below it, 0-1.
+    public var opacity: Double
 
     public init(animation: String, blendMode: String = "Add", color1: PixelColor, color2: PixelColor,
-                speed: Double, beatSynced: Bool = false, tau: Double, phi: Double) {
+                speed: Double, beatSynced: Bool = false, tau: Double, phi: Double, opacity: Double = 1) {
         self.animation = animation
         self.blendMode = blendMode
         self.color1 = color1
@@ -66,6 +68,7 @@ public struct LayerLook: Equatable, Sendable {
         self.beatSynced = beatSynced
         self.tau = tau
         self.phi = phi
+        self.opacity = opacity
     }
 
     /// How long one cycle takes in the preview; a beat-synced layer plays at 120 bpm.
@@ -91,7 +94,8 @@ public extension CoreState {
             speed: self[CoreProps.speed] ?? 1,
             beatSynced: (self[CoreProps.beatSync] ?? 0) > 0,
             tau: self[CoreProps.tau] ?? 1,
-            phi: self[CoreProps.phi] ?? 1)
+            phi: self[CoreProps.phi] ?? 1,
+            opacity: self[CoreProps.opacity] ?? 1)
     }
 }
 
@@ -110,8 +114,8 @@ public enum StripRenderer {
         render(looks.map { ($0, 1) }, seconds: seconds, pixelCount: pixelCount)
     }
 
-    /// Composites a stack the way the strip shows it: each layer with its blend mode, a
-    /// closed layer gate hiding its layer, then the whole frame scaled by `brightness`
+    /// Composites a stack the way the strip shows it: each layer with its blend mode and
+    /// opacity, a closed layer gate hiding its layer, then the whole frame scaled by `brightness`
     /// (0-1; `CoreState.stripBrightness`). Nil as for `render(_:seconds:pixelCount:)`.
     public static func render(_ stack: [LayerSummary.Layer], seconds: Double, pixelCount: Int,
                               brightness: Double) -> [PixelColor]? {
@@ -131,7 +135,7 @@ public enum StripRenderer {
                 animation: Int32(animation), blendMode: Int32(blend),
                 color1: look.color1.shiner, color2: look.color2.shiner,
                 tau: Float(look.tau), phi: Float(look.phi),
-                time: seconds / look.secondsPerCycle, gain: gain))
+                time: seconds / look.secondsPerCycle, gain: gain * Float(min(max(look.opacity, 0), 1))))
         }
         guard pixelCount > 0 else { return [] }
         let pixelCount = min(pixelCount, CoreProps.maxLEDCount)

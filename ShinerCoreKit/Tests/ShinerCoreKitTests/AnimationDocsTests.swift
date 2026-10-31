@@ -127,6 +127,15 @@ struct StripRendererTests {
         #expect(StripRenderer.render([base, top], seconds: 0, pixelCount: 4, brightness: 0)?.first == .black)
     }
 
+    @Test func opacityScalesTheLayerOverBlack() throws {
+        let white = PixelColor(r: 255, g: 255, b: 255)
+        var look = LayerLook(animation: "Static", color1: white, color2: blue, speed: 1, tau: 1, phi: 1, opacity: 0.5)
+        let half = try #require(StripRenderer.render([look], seconds: 0, pixelCount: 4)?.first)
+        #expect([PixelColor(r: 127, g: 127, b: 127), PixelColor(r: 128, g: 128, b: 128)].contains(half), "\(half)")
+        look.opacity = 0
+        #expect(StripRenderer.render([look], seconds: 0, pixelCount: 4)?.first == .black)
+    }
+
     @Test func lightsOffDarkensTheStrip() {
         var state = CoreState()
         state.raw[CoreProps.brightness.id] = "51"

@@ -175,6 +175,47 @@ import Foundation
         await h.stop()
     }
 
+    @Test func opacityEditShowsInTheStackLikeASpeedEdit() async {
+        let h = await SessionHarness()
+        h.session.set(CoreProps.opacity, to: 0.25)
+        #expect(h.session.state.stack?.first?.look.opacity == 0.25)
+        #expect(h.session.state.layerSummary?.layers.first?.look.opacity == 1)
+        await settle { h.session.state.layerSummary?.layers.first?.look.opacity == 0.25 }
+        #expect(written(h.fake) == ["opacity 0.25"])
+        #expect(h.session.state.layerSummary?.layers.first?.look.opacity == 0.25, "the revision brought the core's opacities")
+        await h.stop()
+    }
+
+    @Test func opacitiesLandOnTheirLayersAndFollowTheCursor() async {
+        let fake = FakeCoreLink.demo()
+        fake.setLayer(FakeCoreLink.layer("Comet", blend: "Screen", color: "255 255 255", speed: 1.8, opacity: 0.3), preset: 1, slot: 1)
+        let h = await SessionHarness(fake: fake)
+        #expect(h.session.state.layerSummary?.layers.map(\.look.opacity) == [1, 0.3, 1])
+        h.session.selectLayer(1)
+        #expect(h.session.state[CoreProps.opacity] == 0.3, "from the summary, before the core answers")
+        await h.stop()
+    }
+
+    @Test func coreWithoutOpacityComposesFullyAndStillShowsEdits() async {
+        let fake = FakeCoreLink.demo()
+        fake.values[CoreProps.opacity.id] = nil
+        fake.values[CoreProps.layerOpacities.id] = nil
+        let h = await SessionHarness(fake: fake)
+        #expect(h.session.state.layerSummary?.layers.map(\.look.opacity) == [1, 1, 1])
+        h.session.set(CoreProps.blendMode, to: "Multiply")
+        #expect(h.session.state.stack?.first?.look.blendMode == "Multiply")
+        await h.stop()
+    }
+
+    @Test func malformedOpacitiesSurfaceAndFallBack() async {
+        let h = await SessionHarness()
+        h.fake.inject(.valueChanged(CoreProps.layerOpacities.id, "1 2 1 1 1 1 1 1 1 1"))
+        await settle { h.session.lastError != nil }
+        #expect(h.session.lastError?.contains("layerOpacities slot 1 must be 0-1, not 2") == true, "\(h.session.lastError ?? "")")
+        #expect(h.session.state.layerSummary == nil)
+        await h.stop()
+    }
+
     @Test func malformedSummarySurfacesAndFallsBack() async {
         let h = await SessionHarness()
         h.fake.inject(.valueChanged(CoreProps.layers.id, "P 1\n0 99 0 ffffff 000000 1 1 1 0 1"))
@@ -233,7 +274,7 @@ extension CoreProps {
         let keys: [(PropertyID, String)] = [
             (layer.id, layer.name), (preset.id, preset.name), (layerMove.id, layerMove.name),
             (animation.id, animation.name), (speed.id, speed.name), (color.id, color.name),
-            (blendMode.id, blendMode.name),
+            (blendMode.id, blendMode.name), (opacity.id, opacity.name),
         ]
         return keys.first { $0.0 == id }?.1 ?? id.description
     }

@@ -106,6 +106,32 @@ public struct LayerSummary: Equatable, Sendable {
         return Layer(index: index, look: look, gateOpen: try int(9, "gate", in: 0 ..< 2) == 1)
     }
 
+    /// Decodes `layerOpacities`: exactly `CoreProps.layerCount` numbers 0-1 separated by
+    /// single spaces, slot 0 first, e.g. `1 0.3 1 1 1 1 1 1 1 1`. The error's reason names
+    /// the first slot that fails.
+    public static func opacities(wire: String) throws(LayerSummaryError) -> [Double] {
+        func failure(_ reason: String) -> LayerSummaryError {
+            LayerSummaryError(line: 1, text: wire, reason: "layerOpacities \(reason)")
+        }
+        let fields = wire.split(separator: " ", omittingEmptySubsequences: false)
+        guard fields.count == CoreProps.layerCount else {
+            throw failure("must list \(CoreProps.layerCount) opacities, found \(fields.count)")
+        }
+        var opacities: [Double] = []
+        for (slot, field) in fields.enumerated() {
+            guard let value = Double(field), value.isFinite else { throw failure("slot \(slot) is not a number: \"\(field)\"") }
+            guard (0 ... 1).contains(value) else { throw failure("slot \(slot) must be 0-1, not \(field)") }
+            opacities.append(value)
+        }
+        return opacities
+    }
+
+    /// Sets each layer's opacity to its slot's entry in `opacities`, one per slot.
+    public mutating func apply(opacities: [Double]) {
+        precondition(opacities.count == CoreProps.layerCount, "expected \(CoreProps.layerCount) opacities, got \(opacities.count)")
+        for i in layers.indices { layers[i].look.opacity = opacities[layers[i].index] }
+    }
+
     /// The layer in `slot`, nil for an empty slot.
     public func layer(at slot: Int) -> Layer? {
         layers.first { $0.index == slot }
