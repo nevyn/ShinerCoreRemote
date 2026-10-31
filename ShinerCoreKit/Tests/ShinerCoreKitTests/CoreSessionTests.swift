@@ -39,7 +39,7 @@ struct SessionHarness {
         #expect(h.session.state[CoreProps.brightness] == 180)
         #expect(h.session.state[CoreProps.name] == "Nevyn")
         #expect(h.session.state.isAvailable(CoreProps.tau))
-        #expect(h.session.state.documentation?.animations.contains("rainbow") == true)
+        #expect(h.session.state.documentation?.animations.contains("Gradient Pulse") == true)
         await h.stop()
     }
 
