@@ -54,74 +54,6 @@ struct IntSliderBox: View {
     }
 }
 
-struct LogSliderBox: View {
-    let title: String
-    let session: CoreSession
-    let key: PropertyKey<DoubleConverter>
-    let range: ClosedRange<Double>
-
-    var body: some View {
-        VStack {
-            Text(title).font(.headline)
-            Slider.withLog10Scale(
-                value: Binding(
-                    get: { session.state[key] ?? range.lowerBound },
-                    set: { session.set(key, to: $0) }
-                ),
-                in: range)
-            RawValueText(raw: session.state.rawValue(of: key))
-        }
-        .propBox(key, in: session)
-    }
-}
-
-/// Speed while beat-synced: beats per cycle, snapped to musical detents.
-/// The slider runs in log2 space so each detent gets even travel; the value
-/// label reads musically ("½ beat", "4 beats") instead of as a float.
-struct BeatSpeedBox: View {
-    let title: String
-    let session: CoreSession
-    let key: PropertyKey<DoubleConverter>
-
-    static let detents: [Double] = [0.25, 0.5, 1, 2, 3, 4, 6, 8, 16]
-
-    var body: some View {
-        VStack {
-            Text(title).font(.headline)
-            Slider(
-                value: Binding(
-                    get: { log2(session.state[key] ?? 1) },
-                    set: { set(Self.snapped(pow(2, $0))) }
-                ),
-                in: log2(Self.detents.first!) ... log2(Self.detents.last!))
-            Text(Self.label(for: session.state[key] ?? 1))
-            RawValueText(raw: session.state.rawValue(of: key))
-        }
-        .sensoryFeedback(.selection, trigger: session.state[key])
-        .propBox(key, in: session)
-    }
-
-    private func set(_ newValue: Double) {
-        guard newValue != session.state[key] else { return }
-        session.set(key, to: newValue)
-    }
-
-    /// Nearest detent by log distance, matching the slider's travel.
-    static func snapped(_ value: Double) -> Double {
-        detents.min { abs(log2($0 / value)) < abs(log2($1 / value)) }!
-    }
-
-    static func label(for beats: Double) -> String {
-        switch beats {
-        case 0.25: "¼ beat"
-        case 0.5: "½ beat"
-        case 1: "1 beat"
-        case beats.rounded(): "\(Int(beats)) beats"
-        default: String(format: "%.2f beats", beats) // pre-detent stored value
-        }
-    }
-}
-
 struct ToggleBox: View {
     let title: String
     let session: CoreSession
@@ -180,20 +112,6 @@ struct HeldCaption: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-    }
-}
-
-struct ColorBox: View {
-    let title: String
-    let session: CoreSession
-    let key: PropertyKey<ColorConverter>
-
-    var body: some View {
-        VStack {
-            ColorPicker(title, selection: session.binding(key, default: .black))
-            RawValueText(raw: session.state.rawValue(of: key))
-        }
-        .propBox(key, in: session)
     }
 }
 
@@ -292,16 +210,6 @@ struct NameBox: View {
     }
 }
 
-#Preview("BeatSpeedBox") {
-    let session = CoreSession(link: FakeCoreLink(values: [
-        CoreProps.speed.id: "4.000",
-        CoreProps.beatSync.id: "1",
-    ]))
-    BeatSpeedBox(title: "Speed (beats per cycle)", session: session, key: CoreProps.speed)
-        .padding()
-        .task { await session.run() }
-}
-
 // https://gist.github.com/prachigauriar/c508799bad359c3aa271ccc0865de231
 extension Binding where Value == Double {
     func logarithmic(base: Double = 10) -> Binding<Double> {
@@ -318,10 +226,131 @@ extension Slider where Label == EmptyView, ValueLabel == EmptyView {
         in range: ClosedRange<Double>,
         onEditingChanged: @escaping (Bool) -> Void = { _ in }
     ) -> Slider {
-        self.init(
-            value: value.logarithmic(),
+        // tau and phi may be zero or negative, where log10 is undefined.
+        let clamped = Binding(
+            get: { min(max(value.wrappedValue, range.lowerBound), range.upperBound) },
+            set: { value.wrappedValue = $0 })
+        return self.init(
+            value: clamped.logarithmic(),
             in: log10(range.lowerBound) ... log10(range.upperBound),
             onEditingChanged: onEditingChanged
         )
+    }
+}
+
+extension Color {
+    /// The page behind grouped content: light gray in light mode, black in dark.
+    static var groupedBackground: Color {
+        #if os(macOS)
+        Color(nsColor: .windowBackgroundColor)
+        #else
+        Color(uiColor: .systemGroupedBackground)
+        #endif
+    }
+
+    /// A tile or row on `groupedBackground`.
+    static var groupedSurface: Color {
+        #if os(macOS)
+        Color(nsColor: .controlBackgroundColor)
+        #else
+        Color(uiColor: .secondarySystemGroupedBackground)
+        #endif
+    }
+}
+
+extension Double {
+    /// At most three significant digits: how a person reads a value at a glance.
+    var plain: String { formatted(.number.precision(.significantDigits(1 ... 3))) }
+}
+
+/// A rounded card with a one-line header: title (and symbol) leading, value trailing.
+struct SettingTile<Content: View>: View {
+    let title: String
+    var symbol: String?
+    var value: String?
+    @ViewBuilder var content: Content
+
+    init(_ title: String, symbol: String? = nil, value: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.symbol = symbol
+        self.value = value
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                if let symbol {
+                    Label(title, systemImage: symbol)
+                } else {
+                    Text(title)
+                }
+                Spacer(minLength: 4)
+                if let value {
+                    Text(value)
+                        .font(.body.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .contentTransition(.numericText())
+                }
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            content
+        }
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+        .padding(14)
+        .background(Color.groupedSurface, in: .rect(cornerRadius: 16))
+    }
+}
+
+/// Picks one word of a firmware-documented vocabulary (animation, blend mode, LED order).
+/// A device value missing from the vocabulary stays listed rather than snapping to another.
+struct VocabularyPicker: View {
+    let title: String
+    let session: CoreSession
+    let key: PropertyKey<StringConverter>
+    let options: [String]
+
+    init(_ title: String, session: CoreSession, key: PropertyKey<StringConverter>, options: [String]) {
+        self.title = title
+        self.session = session
+        self.key = key
+        self.options = options
+    }
+
+    var body: some View {
+        let current = session.state[key]
+        Picker(title, selection: Binding(
+            get: { current ?? "" },
+            set: { session.set(key, to: $0) }
+        )) {
+            if current == nil { Text("…").tag("") }
+            ForEach(Self.choices(options, current: current), id: \.self) { Text($0).tag($0) }
+        }
+    }
+
+    static func choices(_ options: [String], current: String?) -> [String] {
+        guard let current, !options.contains(current) else { return options }
+        return options + [current]
+    }
+}
+
+/// Speed while beat-synced: beats per cycle, snapped to musical detents.
+enum BeatSpeed {
+    static let detents: [Double] = [0.25, 0.5, 1, 2, 3, 4, 6, 8, 16]
+
+    /// Nearest detent by log distance, matching the slider's log2 travel.
+    static func snapped(_ value: Double) -> Double {
+        detents.min { abs(log2($0 / value)) < abs(log2($1 / value)) }!
+    }
+
+    static func label(for beats: Double) -> String {
+        switch beats {
+        case 0.25: "¼ beat"
+        case 0.5: "½ beat"
+        case 1: "1 beat"
+        default: "\(beats.plain) beats"
+        }
     }
 }

@@ -69,54 +69,6 @@ struct CoreControlsView: View {
     }
 }
 
-/// Everything that shapes the current animation, per preset and layer.
-struct AnimationSettingsView: View {
-    let session: CoreSession
-
-    var body: some View {
-        let docs = session.state.documentation
-        ScrollView {
-            VStack(spacing: 16) {
-                PickerRow(
-                    title: "Preset", count: 5,
-                    key: CoreProps.preset, session: session,
-                    heldBy: session.state.presetHold?.pin)
-                PickerRow(
-                    title: "Layer", count: 10,
-                    key: CoreProps.layer, session: session)
-
-                Grid(horizontalSpacing: 16, verticalSpacing: 16) {
-                    GridRow {
-                        ColorBox(title: "Primary color", session: session, key: CoreProps.color)
-                        ColorBox(title: "Secondary color", session: session, key: CoreProps.color2)
-                    }
-                    GridRow {
-                        MenuBox(title: "Blend mode", session: session, key: CoreProps.blendMode,
-                                options: docs?.blendModes ?? [])
-                        MenuBox(title: "Animation", session: session, key: CoreProps.animation,
-                                options: docs?.animations ?? [])
-                    }
-                    GridRow {
-                        ToggleBox(title: "Beat sync", session: session, key: CoreProps.beatSync)
-                        if (session.state[CoreProps.beatSync] ?? 0) > 0 {
-                            BeatSpeedBox(title: "Speed (beats per cycle)",
-                                         session: session, key: CoreProps.speed)
-                        } else {
-                            LogSliderBox(title: "Speed (seconds per cycle)",
-                                         session: session, key: CoreProps.speed, range: 0.01 ... 60.0)
-                        }
-                    }
-                    GridRow {
-                        LogSliderBox(title: "Tau", session: session, key: CoreProps.tau, range: 0.01 ... 80.0)
-                        LogSliderBox(title: "Phi", session: session, key: CoreProps.phi, range: 0.01 ... 80.0)
-                    }
-                }
-            }
-            .padding()
-        }
-    }
-}
-
 /// Properties of the physical core itself, independent of animation.
 struct CoreSettingsView: View {
     let session: CoreSession
@@ -183,37 +135,6 @@ struct MeshSettingsView: View {
             }
             .padding()
         }
-    }
-}
-
-/// Segmented picker for layer/preset switches, whose device-side change
-/// fans out to the other props (hence `select`, not `set`).
-struct PickerRow: View {
-    let title: String
-    let count: Int
-    let key: PropertyKey<IntConverter>
-    let session: CoreSession
-    /// The pin of a closed switch that holds this value; disables the picker.
-    var heldBy: String?
-
-    var body: some View {
-        VStack {
-            HStack {
-                Text(title + ":").font(.headline)
-                Picker(title, selection: Binding(
-                    get: { session.state[key] ?? 0 },
-                    set: { session.select(key, $0) }
-                )) {
-                    ForEach(0..<count, id: \.self) {
-                        Text($0.description).tag($0)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .disabled(heldBy != nil)
-            }
-            HeldCaption(pin: heldBy)
-        }
-        .availability(of: key, in: session)
     }
 }
 

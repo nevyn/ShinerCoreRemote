@@ -21,6 +21,11 @@ public struct PropertyKey<Converter: PropertyConverter>: Sendable {
 /// All properties the firmware exposes. UUIDs are the spec: they must match
 /// https://github.com/nevyn/shinercore.
 public enum CoreProps {
+    /// The firmware's PRESET_COUNT: valid `preset` and `bootPreset` values are 0 ..< presetCount.
+    public static let presetCount = 5
+    /// The firmware's LAYER_COUNT: valid `layer` values are 0 ..< layerCount.
+    public static let layerCount = 10
+
     public static let color = PropertyKey<ColorConverter>("color", "c116fce1-9a8a-4084-80a3-b83be2fbd108")
     public static let color2 = PropertyKey<ColorConverter>("color2", "83595a76-1b17-4158-bcee-e702c3165caf")
     public static let speed = PropertyKey<DoubleConverter>("speed", "5341966c-da42-4b65-9c27-5de57b642e28")
