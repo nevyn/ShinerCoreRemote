@@ -167,6 +167,17 @@ import Foundation
         await h.stop()
     }
 
+    @Test func aNeighborsOpacitiesStayOffTheOwnStack() async {
+        let h = await SessionHarness()
+        // Slot 1, because the cursor overlay would hide a wrong slot 0
+        h.fake.neighborLayers = [FakeCoreLink.layer("Rainbow", color: "0 0 0", speed: 3),
+                                 FakeCoreLink.layer("Rainbow", color: "0 0 0", speed: 3, opacity: 0.3)]
+        await settle { h.session.state.layerSummary?.source == .neighbor }
+        #expect(h.session.state.playingLayers?.map(\.look.opacity) == [1, 0.3])
+        #expect(h.session.state.stack?.map(\.look.opacity) == [1, 1, 1])
+        await h.stop()
+    }
+
     @Test func editsShowInTheStackBeforeTheSummaryCatchesUp() async {
         let h = await SessionHarness()
         h.session.set(CoreProps.blendMode, to: "Multiply")

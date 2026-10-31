@@ -168,7 +168,8 @@ public final class CoreSession {
             state.layerSummaryReadFailed = false
             decodeLayers()
         case CoreProps.layerOpacities.id:
-            decodeLayers()
+            // Mixed with the previous `layers`, a neighbor's opacities would land on the own summary
+            if outstandingReads[CoreProps.layers.id]?.isEmpty ?? true { decodeLayers() }
         case CoreProps.layersRevision.id:
             guard let revision = Int(raw) else {
                 lastError = "Core sent an unreadable layers revision: \"\(raw)\""
