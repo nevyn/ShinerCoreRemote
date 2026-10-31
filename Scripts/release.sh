@@ -133,7 +133,7 @@ submit() {
   vid=$(version_id)
   require_editable "$vid"
   loc=$(localization_id "$vid")
-  build=$(asc versions view --version-id "$vid" | jq -r '.buildId // empty')
+  build=$(asc versions view --version-id "$vid" --include-build | jq -r '.buildId // empty')
   [ -n "$build" ] || die "version $VERSION has no build attached; stage it first"
 
   deadline=$((SECONDS + 45 * 60))
